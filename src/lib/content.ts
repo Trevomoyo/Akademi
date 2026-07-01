@@ -843,7 +843,393 @@ export const SUBJECTS_DB: Subject[] = [
   { id: "a-business-ent", name: "Business Enterprise", code: "6004", level: "a", themeColor: "#B91C1C", vibeText: "Practical business creation.", topics: [placeholder("abe-1","a-business-ent","Entrepreneurship"), placeholder("abe-2","a-business-ent","Business Planning")] },
   { id: "a-history", name: "History", code: "6006", level: "a", themeColor: "#92400E", vibeText: "Critical past events.", topics: [placeholder("ahis-1","a-history","African Nationalism"), placeholder("ahis-2","a-history","Cold War")] },
   { id: "a-geography", name: "Geography", code: "6037", level: "a", themeColor: "#0F766E", vibeText: "Advanced human and physical geography.", topics: [placeholder("ageo-1","a-geography","Geomorphology"), placeholder("ageo-2","a-geography","Development Geography")] },
-  { id: "a-computer-science", name: "Computer Science", code: "6023", level: "a", themeColor: "#0C4A6E", vibeText: "Data structures and algorithms.", topics: [placeholder("acs2-1","a-computer-science","Data Structures"), placeholder("acs2-2","a-computer-science","Algorithms & Complexity")] },
+  // ── A-LEVEL: COMPUTER SCIENCE ──────────────────────────────────
+{
+  id: "a-computer-science",
+  name: "Computer Science",
+  code: "6023",
+  level: "a",
+  themeColor: "#0EA5E9",
+  vibeText: "Data representation, floating point arithmetic, and computer architecture.",
+  topics: [
+    // ── TOPIC 1: Fixed Point Integer Representation ────────────
+    {
+      id: "acs-fixed-point-int",
+      subjectId: "a-computer-science",
+      title: "Fixed Point Integer Representation",
+      summary: "Understanding how integers are represented in binary, including positive and negative number ranges.",
+      readXP: 15,
+      hasMathEquations: true,
+      contentMarkdown: `
+## Fixed Point Integer Representation
+
+### 1. Basic Concept
+
+In fixed point representation, there is **no memory space for the decimal point**. Computers represent a finite number of digits, which allows us to evaluate the maximum and minimum possible numbers that can be represented.
+
+> **Key point:** The binary point is fixed at one position — its presence is assumed based on whether the number stored is a fraction or an integer.
+
+### 2. Range of Signed Integers (8‑bit two's complement)
+
+| Type | Binary | Denary |
+|------|--------|--------|
+| Maximum Positive | 01111111 | +127 |
+| Minimum Positive | 00000001 | +1 |
+| Smallest Magnitude Negative | 11111111 | -1 |
+| Largest Magnitude Negative | 10000000 | -128 |
+
+**General formula for n bits:**  
+Range: $-2^{n-1}$ to $2^{n-1} - 1$
+
+### 3. Why This Matters
+
+The fixed number of bits limits the range. For example, an 8‑bit system cannot store 128 or -129.
+
+**Example:**  
+$$ 01111111_2 = +127_{10} $$  
+$$ 10000000_2 = -128_{10} $$
+
+### 4. Unsigned Integers
+
+For unsigned integers (all bits used for magnitude):
+
+- Range: $0$ to $2^n - 1$
+- 8‑bit: 0 to 255
+- 16‑bit: 0 to 65,535
+
+> **Key point:** The leftmost bit (MSB) determines sign in signed representation: 0 = positive, 1 = negative.
+
+---
+### Exercise
+1. What is the range of a 10‑bit signed integer?
+2. Why can't an 8‑bit signed integer represent 128?
+`,
+      mcqs: [],
+      essayPrompt: undefined
+    },
+
+    // ── TOPIC 2: Fixed Point Binary & Two's Complement ──────────
+    {
+      id: "acs-fixed-point-binary",
+      subjectId: "a-computer-science",
+      title: "Fixed Point Binary & Two's Complement",
+      summary: "Converting between denary and binary, and representing negative numbers using two's complement.",
+      readXP: 15,
+      hasMathEquations: true,
+      contentMarkdown: `
+## Fixed Point Binary & Two's Complement
+
+### 1. Converting Denary to Fixed Point Binary
+
+**Example:** Convert 6.1875 to binary
+
+**Step 1:** Convert whole number part (6):  
+$$ 6_{10} = 110_2 $$
+
+**Step 2:** Convert fractional part (0.1875):
+
+| Operation | Result | Bit |
+|-----------|--------|-----|
+| 0.1875 × 2 | 0.375 | 0 |
+| 0.375 × 2 | 0.75 | 0 |
+| 0.75 × 2 | 1.5 | 1 |
+| 0.5 × 2 | 1.0 | 1 |
+
+$$ 0.1875_{10} = 0011_2 $$
+
+**Result:**  
+$$ 6.1875_{10} = 0110.0011_2 $$
+
+### 2. Converting Fixed Point Binary to Denary
+
+**Example:** Convert 0110.1100 to denary
+
+| 0 | 1 | 1 | 0 | . | 1 | 1 | 0 | 0 |
+|---|---|---|---|---|---|---|---|---|
+| 0 | 4 | 2 | 0 |   | ½ | ¼ | 0 | 0 |
+
+$$ = 4 + 2 + \\tfrac{1}{2} + \\tfrac{1}{4} = 6.75 $$
+
+### 3. Two's Complement for Negative Numbers
+
+**Steps to convert a positive binary number to negative:**
+
+1. Write the positive number in binary
+2. Invert all bits (0→1, 1→0)
+3. Add 1 to the result
+
+**Example:** Convert -3.1875 to binary
+
+**Step 1:** $3.1875 = 0011.0011$
+
+**Step 2:** Invert: $1100.1100$
+
+**Step 3:** Add 1:
+
+$$ \\begin{array}{r}
+  1100.1100 \\\\
++ \\quad 0000.0001 \\\\
+\\hline
+  1100.1101
+\\end{array} $$
+
+**Result:** $-3.1875 = 1100.1101$
+
+### 4. Converting Signed Fixed Point Binary to Denary
+
+**Example:** Convert 1100.1101 to denary
+
+| 1 | 1 | 0 | 0 | . | 1 | 1 | 0 | 1 |
+|---|---|---|---|---|---|---|---|---|
+| -8 | 4 | 0 | 0 |   | ½ | ¼ | 0 | 1/16 |
+
+$$ = -8 + 4 + \\tfrac{1}{2} + \\tfrac{1}{4} + \\tfrac{1}{16} = -3.1875 $$
+
+### 5. Advantages & Disadvantages of Fixed Point
+
+| Advantage | Disadvantage |
+|-----------|--------------|
+| Simple arithmetic (same as integer) | Limited range |
+| Faster processing | Precision vs range trade‑off |
+| No complex hardware needed | Increasing bits after decimal reduces range |
+
+---
+### Exercise
+1. Convert 13.625 to binary.
+2. Convert 1011.1010 to denary.
+3. Represent -5.5 in 8‑bit fixed point binary.
+`,
+      mcqs: [],
+      essayPrompt: undefined
+    },
+
+    // ── TOPIC 3: Floating Point Representation ──────────────────
+    {
+      id: "acs-floating-point",
+      subjectId: "a-computer-science",
+      title: "Floating Point Representation",
+      summary: "Understanding mantissa, exponent, and how floating point numbers extend the range of representable values.",
+      readXP: 15,
+      hasMathEquations: true,
+      contentMarkdown: `
+## Floating Point Representation
+
+### 1. Why Floating Point?
+
+Fixed point has limited range. Even with 32 bits (8 bits for fractional part), the largest number is just over 8 million.
+
+Floating point uses **scientific notation** in binary:
+
+$$ \\text{Number} = \\text{Mantissa} \\times 2^{\\text{Exponent}} $$
+
+### 2. Structure
+
+A floating point number is divided into:
+
+- **Mantissa (Significand):** Holds the significant digits
+- **Exponent:** Defines where to place the binary point
+
+**Example:** 16‑bit representation (10‑bit mantissa, 6‑bit exponent)
+
+| Mantissa (10 bits) | Exponent (6 bits) |
+|--------------------|-------------------|
+| 0 110100000 | 000011 |
+
+**Interpretation:**  
+$$ 0.1101 \\times 2^3 = 110.1_2 = 6.5_{10} $$
+
+> **Key point:** The binary point starts between the sign bit and the first mantissa bit.
+
+### 3. Converting Floating Point to Denary
+
+**Rules:**
+
+1. Place the point between the sign bit and the first mantissa digit
+2. Convert the exponent to decimal (positive or negative)
+3. Move the point right (positive exponent) or left (negative exponent)
+4. Convert the resulting binary number to denary
+
+**Example 1:**  
+0 100000000 11111110 (10‑bit mantissa, 8‑bit exponent)
+
+$$ 0.100000000 \\times 2^{-2} = 0.001_2 = 0.125_{10} $$
+
+**Example 2 (negative mantissa):**  
+1 100000000 11111110
+
+$$ 1.100000000 \\times 2^{-2} = 1.111_2 $$
+
+$$ = -1 + \\tfrac{1}{2} + \\tfrac{1}{4} + \\tfrac{1}{8} = -0.125 $$
+
+### 4. Exercise
+
+Convert the following floating point binary numbers to denary (10‑bit mantissa, 6‑bit exponent):
+
+(i) 0 101000000 111111  
+(ii) 1 101000000 111111  
+(iii) 1 001101000 000110  
+(iv) 1 001101000 000110
+`,
+      mcqs: [],
+      essayPrompt: undefined
+    },
+
+    // ── TOPIC 4: Normalisation ──────────────────────────────────
+    {
+      id: "acs-normalisation",
+      subjectId: "a-computer-science",
+      title: "Normalisation of Floating Point Numbers",
+      summary: "Normalising floating point numbers for maximum precision and standard representation.",
+      readXP: 15,
+      hasMathEquations: true,
+      contentMarkdown: `
+## Normalisation of Floating Point Numbers
+
+### 1. What is Normalisation?
+
+Normalisation ensures **maximum precision** for a given number of bits. A normalised number always starts with **2 bits that are different** (01 or 10).
+
+> **Key point:** 0.001101 × 2³ is NOT normalised. 0.1101 × 2¹ IS normalised.
+
+### 2. Why Normalise?
+
+- Maximum precision for a given number of bits
+- Only one representation for each number (standardisation)
+- Maximum possible accuracy
+- Can detect error conditions (underflow/overflow)
+- Maximises the range of numbers
+
+### 3. Rules for Normalisation
+
+1. Place the point between the sign bit and the first mantissa digit
+2. Convert the exponent to decimal
+3. Shift the point right or left to achieve normalised state
+   - Add the number of places moved to the left to the exponent
+   - Subtract if the point was moved to the right
+4. Convert the exponent back to binary
+5. Pad the mantissa with 0s on the right to maintain bit count
+
+### 4. Examples
+
+**Example 1:** Normalise 0 000110101 000010 (10‑bit mantissa, 6‑bit exponent)
+
+$$ 0.000110101 \\times 2^2 $$
+
+Move point 3 places right:
+
+$$ 0.110101 \\times 2^{-1} $$
+
+**Normalised:** 0 110101000 111111
+
+**Example 2:** Normalise 1 111100100 000011
+
+$$ 1.111100100 \\times 2^3 $$
+
+Move point 4 places right:
+
+$$ 1.001100 \\times 2^{-1} $$
+
+**Normalised:** 1 001000000 111111
+
+### 5. Exercise
+
+Normalise the following numbers (10‑bit mantissa, 6‑bit exponent):
+
+(i) 0 00000110 000111  
+(ii) 0 00010111 000110  
+(iii) 1 11110111 000000  
+(iv) 1 11111101 000011
+
+### 6. Normalising Decimal Numbers
+
+**Example:** Normalise 3.1875 (8‑bit mantissa, 4‑bit exponent)
+
+$$ 3.1875 = 0011.0011 $$
+
+$$ 0011.0011 \\times 2^0 $$
+
+Move point 2 places left:
+
+$$ 0.110011 \\times 2^2 $$
+
+**Normalised:** 0 1100110 0010
+`,
+      mcqs: [],
+      essayPrompt: undefined
+    },
+
+    // ── TOPIC 5: Range, Precision & Arithmetic Errors ───────────
+    {
+      id: "acs-range-precision",
+      subjectId: "a-computer-science",
+      title: "Range, Precision & Arithmetic Errors",
+      summary: "Understanding overflow, underflow, and the trade-off between range and precision.",
+      readXP: 15,
+      hasMathEquations: true,
+      contentMarkdown: `
+## Range, Precision & Arithmetic Errors
+
+### 1. Range vs Precision Trade‑off
+
+- **Exponent size** determines the **range** of numbers
+- **Mantissa size** determines the **precision** (accuracy)
+
+| Change | Effect |
+|--------|--------|
+| ↑ Exponent bits | ↑ Range, ↓ Precision |
+| ↓ Exponent bits | ↓ Range, ↑ Precision |
+| ↑ Mantissa bits | ↑ Precision, ↓ Range |
+| ↓ Mantissa bits | ↓ Precision, ↑ Range |
+
+**Only way to increase both:** Use more bits (single‑precision → double‑precision)
+
+### 2. Number Ranges (8‑bit Mantissa, 8‑bit Exponent)
+
+| Number | Mantissa | Exponent | Result |
+|--------|----------|----------|--------|
+| Largest +ve | 0.1111111 | 0.1111111 | $1 \\times 2^{127} = 2^{127}$ |
+| Smallest +ve | 0.1000000 | 1.0000000 | $0.5 \\times 2^{-128}$ |
+| Largest -ve | 1.0111111 | 1.0000000 | $-0.5 \\times 2^{-128}$ |
+| Smallest -ve | 1.0000000 | 0.1111111 | $-1 \\times 2^{127}$ |
+
+### 3. Overflow
+
+Overflow occurs when a calculation produces a result exceeding the capacity of the result register.
+
+**Example:** 16‑bit integers (range: -32768 to 32767)
+
+$$ 2000 + 2000 = 4000 $$
+
+In binary:  
+$$ 0100111000100000 + 0100111000100000 = 1001110001000000 $$
+
+The 16th bit contains a '1' → interpreted as negative! Result = -25536 instead of 4000.
+
+**Floating point overflow:** Exponent becomes too large to represent.
+
+### 4. Underflow
+
+Underflow occurs when a result is too small to represent (exponent too negative).
+
+**Example:** A number smaller than $2^{-128}$ cannot be represented.
+
+The computer treats it as 0.
+
+> **Key point:** Underflow is less serious than overflow — it results in loss of precision, not an incorrect sign.
+
+### 5. Summary of Errors
+
+| Error | Cause | Example |
+|-------|-------|---------|
+| Overflow | Result too large | 255 + 1 = 0 (8‑bit) |
+| Underflow | Result too small | Tiny number → 0 |
+| Rounding | Limited precision | 1/3 = 0.333... |
+`,
+      mcqs: [],
+      essayPrompt: undefined
+    }
+  ]
+},
   { id: "a-sociology", name: "Sociology", code: "6043", level: "a", themeColor: "#0F766E", vibeText: "Study of society.", topics: [placeholder("asoc-1","a-sociology","Social Stratification"), placeholder("asoc-2","a-sociology","Sociological Theories")] },
   { id: "a-family-religious", name: "Family & Religious Studies", code: "6074", level: "a", themeColor: "#78350F", vibeText: "Advanced societal beliefs.", topics: [placeholder("afrs-1","a-family-religious","Marriage & Family"), placeholder("afrs-2","a-family-religious","Religious Ethics")] },
   { id: "a-heritage", name: "Heritage Studies", code: "6081", level: "a", themeColor: "#065F46", vibeText: "Advanced national identity.", topics: [placeholder("aher-1","a-heritage","Zimbabwean Heritage"), placeholder("aher-2","a-heritage","Conservation")] },
