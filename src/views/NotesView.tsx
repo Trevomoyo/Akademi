@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SUBJECTS_DB } from '../lib/content';
 import { AkademiDB } from '../lib/db';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, BookOpen, CheckCircle, Sparkles, Brain, Target, Trophy } from 'lucide-react';
 import { ThreeModelEmbed } from '../components/ThreeModelEmbed';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
@@ -10,13 +10,11 @@ import { calculateLevel, awardBadge } from '../lib/xp';
 import confetti from 'canvas-confetti';
 
 function renderMarkdownWithKaTeX(markdown: string) {
-  // Split on $$...$$ (display math) first, then $...$ (inline math)
   const segments: { text: string; math: boolean; display: boolean }[] = [];
   let remaining = markdown;
   const displayRe = /\$\$([\s\S]*?)\$\$/g;
   const inlineRe = /\$((?:[^$\\]|\\.)+?)\$/g;
 
-  // Replace display math
   let last = 0;
   let m: RegExpExecArray | null;
   displayRe.lastIndex = 0;
@@ -27,7 +25,6 @@ function renderMarkdownWithKaTeX(markdown: string) {
   }
   segments.push({ text: remaining.slice(last), math: false, display: false });
 
-  // For non-math segments, handle inline math
   const finalSegments: { text: string; math: boolean; display: boolean }[] = [];
   for (const seg of segments) {
     if (seg.math) { finalSegments.push(seg); continue; }
@@ -45,7 +42,7 @@ function renderMarkdownWithKaTeX(markdown: string) {
     if (seg.math) {
       try {
         const html = katex.renderToString(seg.text, { throwOnError: false, displayMode: seg.display });
-        return <span key={index} className={seg.display ? 'block my-4 overflow-x-auto text-center' : ''} dangerouslySetInnerHTML={{ __html: html }} />;
+        return <span key={index} className={seg.display ? 'block my-6 overflow-x-auto text-center py-2' : ''} dangerouslySetInnerHTML={{ __html: html }} />;
       } catch {
         return <span key={index} className="text-red-500">Math error</span>;
       }
@@ -54,19 +51,36 @@ function renderMarkdownWithKaTeX(markdown: string) {
     return (
       <span key={index}>
         {lines.map((line, i) => {
-          if (line.startsWith('### ')) return <h3 key={i} className="font-bold text-xl mt-6 mb-2">{line.slice(4)}</h3>;
-          if (line.startsWith('## ')) return <h2 key={i} className="font-bold text-2xl mt-8 mb-3">{line.slice(3)}</h2>;
-          if (line.startsWith('> **Key point:**')) return <blockquote key={i} className="border-l-4 border-[var(--primary)] pl-4 italic text-[var(--text-muted)] my-4">{line.replace('> **Key point:**', '')}</blockquote>;
-          if (line.startsWith('**Worked Example:**') || line.startsWith('**Solution:**')) return <strong key={i} className="block mt-4 mb-2">{line.replace(/\*\*/g, '')}</strong>;
-          if (line.startsWith('---')) return <hr key={i} className="my-6 border-[var(--border)]" />;
+          if (line.startsWith('### ')) return <h3 key={i} className="font-bold text-xl mt-8 mb-3 text-[var(--text-primary)]">{line.slice(4)}</h3>;
+          if (line.startsWith('## ')) return <h2 key={i} className="font-bold text-2xl mt-10 mb-4 text-[var(--text-primary)] border-l-4 border-[var(--primary)] pl-4">{line.slice(3)}</h2>;
+          if (line.startsWith('> **Key point:**')) return (
+            <blockquote key={i} className="bg-gradient-to-r from-[var(--primary-light)] to-transparent border-l-4 border-[var(--primary)] pl-5 py-3 pr-4 my-5 rounded-r-xl text-[var(--text-primary)] font-medium">
+              💡 {line.replace('> **Key point:**', '').trim()}
+            </blockquote>
+          );
+          if (line.startsWith('**Worked Example:**')) return <div key={i} className="bg-gradient-to-r from-[#FEF3E2] to-transparent border-l-4 border-[var(--accent-warm)] pl-5 py-3 my-5 rounded-r-xl font-semibold text-[#92400E]">📘 {line.replace(/\*\*/g, '')}</div>;
+          if (line.startsWith('**Solution:**')) return <div key={i} className="bg-gradient-to-r from-[#E8F5F1] to-transparent border-l-4 border-[#14B8A6] pl-5 py-3 my-5 rounded-r-xl font-semibold text-[#0D7A6E]">✅ {line.replace(/\*\*/g, '')}</div>;
+          if (line.startsWith('---')) return <hr key={i} className="my-8 border-[var(--border)]" />;
           if (line.trim() === '') return <br key={i} />;
-          // Bold inline **text**
+          
+          // Handle tables (simple markdown tables)
+          if (line.includes('|') && line.trim().startsWith('|')) {
+            const cells = line.split('|').filter(c => c.trim());
+            const isHeader = i === 0 || (i > 0 && lines[i-1]?.includes('---'));
+            return (
+              <div key={i} className={`flex ${isHeader ? 'font-bold bg-[var(--primary-light)]' : ''} border-b border-[var(--border)] ${isHeader ? 'rounded-t-xl' : ''}`}>
+                {cells.map((cell, ci) => (
+                  <div key={ci} className="flex-1 p-3 text-sm">{cell.trim()}</div>
+                ))}
+              </div>
+            );
+          }
+
           const boldParts = line.split(/\*\*(.*?)\*\*/g);
           return (
-            <React.Fragment key={i}>
-              {boldParts.map((p, j) => j % 2 === 1 ? <strong key={j}>{p}</strong> : p)}
-              <br />
-            </React.Fragment>
+            <p key={i} className="mb-3 leading-relaxed text-[var(--text-primary)]">
+              {boldParts.map((p, j) => j % 2 === 1 ? <strong key={j} className="text-[var(--primary)]">{p}</strong> : p)}
+            </p>
           );
         })}
       </span>
@@ -97,6 +111,7 @@ export default function NotesView({ route, navigate, profile, showToast, onUpdat
   const [essayText, setEssayText] = useState('');
   const [grading, setGrading] = useState(false);
   const [gradeResult, setGradeResult] = useState<any>(null);
+  const [showAnswers, setShowAnswers] = useState(false);
   
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessage, setChatMessage] = useState('');
@@ -116,7 +131,7 @@ export default function NotesView({ route, navigate, profile, showToast, onUpdat
         await AkademiDB.saveProgress(updatedProg);
         setProgress(updatedProg);
         onUpdateProfile({ ...profile, xp: (profile.xp || 0) + topic.readXP });
-        showToast(`+${topic.readXP} XP (Read notes)`);
+        showToast(`✨ +${topic.readXP} XP (Read notes)`);
       } else {
         setProgress(p);
       }
@@ -138,7 +153,7 @@ export default function NotesView({ route, navigate, profile, showToast, onUpdat
     let xpDelta = 0;
     if (isCorrect) {
       xpDelta += 25;
-      showToast('+25 XP (Correct Answer)');
+      showToast('🎯 +25 XP (Correct Answer)');
     }
 
     if (mcqIndex === topic.mcqs.length - 1) {
@@ -152,12 +167,13 @@ export default function NotesView({ route, navigate, profile, showToast, onUpdat
       if (pct === 100) {
         xpDelta += 150;
         confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-        setTimeout(() => showToast('🎉 Perfect Score! +150 XP'), 500);
+        setTimeout(() => showToast('🏆 Perfect Score! +150 XP'), 500);
         awardBadge('perfect_score');
       }
 
       if (topic.id === 'chem-benzene') awardBadge('benzene_master');
       if (topic.hasMathEquations) awardBadge('equation_king');
+      setShowAnswers(true);
     }
 
     if (xpDelta > 0) {
@@ -200,13 +216,13 @@ export default function NotesView({ route, navigate, profile, showToast, onUpdat
       await AkademiDB.saveProgress(newProg);
       setProgress(newProg);
       
-      showToast('+50 XP (Essay Submitted)');
+      showToast('✍️ +50 XP (Essay Submitted)');
       awardBadge('essayist');
       let extraXp = 0;
       if (scorePct >= 80) {
         extraXp = 100;
         awardBadge('top_grade');
-        showToast('Top Grade! +100 XP Bonus');
+        showToast('🏅 Top Grade! +100 XP Bonus');
       }
       onUpdateProfile({ ...profile, xp: profile.xp + 50 + extraXp });
 
@@ -248,142 +264,257 @@ export default function NotesView({ route, navigate, profile, showToast, onUpdat
     }
   };
 
+  const mcqProgress = mcqAnswers.filter(a => a !== undefined).length;
+  const totalMcqs = topic.mcqs?.length || 0;
+  const isMcqComplete = mcqProgress === totalMcqs && totalMcqs > 0;
+
   return (
-    <div className="bg-[var(--surface)] min-h-screen font-body pb-20 relative">
-      <div className="sticky top-0 z-40 bg-[var(--surface)] border-b border-[var(--border)]">
+    <div className="bg-[var(--surface)] min-h-screen font-body pb-24 relative">
+      {/* Header */}
+      <div className="sticky top-0 z-40 bg-[var(--surface)]/95 backdrop-blur-md border-b border-[var(--border)]">
         <div className="px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button onClick={() => navigate(`/subject/${subject.id}`)} className="p-2 hover:bg-black/5 rounded-full">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate(`/subject/${subject.id}`)} className="p-2 hover:bg-[var(--surface-light)] rounded-full transition-colors">
               <ArrowLeft size={20} />
             </button>
-            <div className="font-bold truncate max-w-[200px] text-sm">{subject.name}</div>
-          </div>
-          <div className="text-xs font-semibold text-[var(--primary)] bg-[var(--primary-light)] px-2 py-1 rounded-full">
-            {progress?.readComplete ? 'Read' : 'Reading'}
-          </div>
-        </div>
-        <div className="w-full h-0.5 bg-[var(--surface-light)]">
-          <div className="h-full bg-[var(--primary)]" style={{ width: '100%' }}></div>
-        </div>
-      </div>
-
-      <div 
-        className="h-[200px] flex flex-col justify-end p-6 text-white"
-        style={{ background: `linear-gradient(to bottom right, ${subject.themeColor}, ${subject.themeColor}aa)` }}
-      >
-        <div className="text-xs font-bold uppercase tracking-widest opacity-80 mb-2">Topic Lesson</div>
-        <h1 className="font-display text-2xl font-bold leading-tight">{topic.title}</h1>
-      </div>
-
-      <div className="lesson-body bg-white rounded-t-3xl -mt-6 p-6 md:p-8 min-h-screen border-t border-[var(--border)] relative z-10 shadow-sm">
-        
-        <div className="bg-[#FEF3E2] border border-[#F5C842] rounded-xl p-4 mb-8 text-[#92400E]">
-          <h3 className="font-bold flex items-center mb-2"><span className="mr-2">📋</span> Objectives</h3>
-          <p className="text-sm">{topic.summary}</p>
-        </div>
-
-        <div className="text-[var(--text-primary)] leading-relaxed text-lg">
-          {renderMarkdownWithKaTeX(topic.contentMarkdown)}
-        </div>
-
-        {topic.hasThreeDModel && (
-          <div className="my-8">
-            <ThreeModelEmbed modelType={topic.hasThreeDModel as any} />
-          </div>
-        )}
-
-        {/* MCQs Section */}
-        {topic.mcqs && topic.mcqs.length > 0 && (
-          <div className="mt-12 bg-[var(--surface-light)] border border-[var(--border)] rounded-2xl p-6">
-            <h3 className="font-bold text-xl mb-4 text-[var(--text-primary)]">📝 Practice Questions</h3>
-            <div className="font-semibold mb-4 text-sm text-[var(--text-muted)]">Question {mcqIndex + 1} of {topic.mcqs.length}</div>
-            
-            <div className="mb-4 text-lg font-medium">{topic.mcqs[mcqIndex].question}</div>
-            
-            <div className="flex flex-col gap-3">
-              {topic.mcqs[mcqIndex].options.map((opt: string, i: number) => {
-                const isSelected = mcqAnswers[mcqIndex] === i;
-                const isCorrect = topic.mcqs[mcqIndex].correctIndex === i;
-                const hasAnswered = mcqAnswers[mcqIndex] !== undefined;
-                
-                let btnClass = "border-[var(--border)] hover:border-[var(--primary)] bg-white";
-                if (hasAnswered) {
-                   if (isCorrect) btnClass = "bg-green-100 border-green-500 text-green-800";
-                   else if (isSelected && !isCorrect) btnClass = "bg-red-100 border-red-500 text-red-800";
-                   else btnClass = "bg-white opacity-50";
-                }
-
-                return (
-                  <button 
-                    key={i} 
-                    onClick={() => handleMcqSelect(i)}
-                    disabled={hasAnswered}
-                    className={`w-full text-left px-5 py-4 min-h-[52px] rounded-full border ${btnClass} font-medium transition-colors`}
-                  >
-                    {opt}
-                  </button>
-                );
-              })}
+            <div>
+              <div className="text-xs text-[var(--text-muted)] font-medium">{subject.name}</div>
+              <div className="font-bold text-sm truncate max-w-[180px]">{topic.title}</div>
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="text-xs font-semibold text-[var(--primary)] bg-[var(--primary-light)] px-3 py-1.5 rounded-full">
+              {progress?.readComplete ? '✅ Read' : '📖 Reading'}
+            </div>
+          </div>
+        </div>
+        {/* Progress bar */}
+        <div className="w-full h-1 bg-[var(--surface-light)]">
+          <div className="h-full bg-gradient-to-r from-[var(--primary)] to-[var(--accent-warm)] transition-all duration-500" style={{ width: '100%' }}></div>
+        </div>
+      </div>
 
-            {mcqAnswers[mcqIndex] !== undefined && (
-              <div className="mt-4 p-4 bg-white rounded-xl border border-[var(--border)] text-sm">
-                <strong>Explanation: </strong> {topic.mcqs[mcqIndex].explanation}
+      {/* Hero Banner */}
+      <div 
+        className="relative overflow-hidden px-6 pt-8 pb-12"
+        style={{ background: `linear-gradient(135deg, ${subject.themeColor}dd, ${subject.themeColor}55, ${subject.themeColor}22)` }}
+      >
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-2xl translate-y-1/2 -translate-x-1/4"></div>
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 text-white/80 text-xs font-semibold uppercase tracking-wider mb-2">
+            <BookOpen size={14} />
+            <span>Topic Lesson</span>
+          </div>
+          <h1 className="font-display text-2xl md:text-3xl font-bold text-white leading-tight">
+            {topic.title}
+          </h1>
+          <p className="text-white/80 text-sm mt-2 max-w-xl">
+            {topic.summary}
+          </p>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="px-4 md:px-6 -mt-4 relative z-10">
+        <div className="bg-[var(--surface)] rounded-3xl shadow-lg border border-[var(--border)] p-5 md:p-8 max-w-3xl mx-auto">
+          
+          {/* Objectives Callout */}
+          <div className="bg-gradient-to-r from-[#FEF3E2] to-[#FFF8ED] border border-[#F5C842]/30 rounded-2xl p-5 mb-8">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 bg-[#F5C842]/20 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                <Target size={20} className="text-[#92400E]" />
               </div>
-            )}
+              <div>
+                <h3 className="font-bold text-[#92400E] text-sm mb-1">What you'll learn</h3>
+                <p className="text-[#92400E]/80 text-sm leading-relaxed">{topic.summary}</p>
+              </div>
+            </div>
+          </div>
 
-            {mcqAnswers[mcqIndex] !== undefined && mcqIndex < topic.mcqs.length - 1 && (
+          {/* Lesson Content */}
+          <div className="lesson-body text-[var(--text-primary)] leading-relaxed">
+            {renderMarkdownWithKaTeX(topic.contentMarkdown)}
+          </div>
+
+          {/* 3D Model */}
+          {topic.hasThreeDModel && (
+            <div className="my-10">
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles size={18} className="text-[var(--primary)]" />
+                <h3 className="font-bold text-sm uppercase tracking-wider text-[var(--text-muted)]">Interactive 3D Model</h3>
+              </div>
+              <ThreeModelEmbed modelType={topic.hasThreeDModel as any} />
+            </div>
+          )}
+
+          {/* MCQs Section */}
+          {topic.mcqs && topic.mcqs.length > 0 && (
+            <div className="mt-12">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <Brain size={22} className="text-[var(--primary)]" />
+                  <h3 className="font-bold text-xl">Practice Questions</h3>
+                </div>
+                <div className="text-sm font-medium text-[var(--text-muted)]">
+                  {mcqProgress}/{totalMcqs} answered
+                </div>
+              </div>
+
+              {/* Progress dots */}
+              <div className="flex gap-1.5 mb-6">
+                {Array.from({ length: totalMcqs }).map((_, i) => (
+                  <div 
+                    key={i}
+                    className={`h-1.5 flex-1 rounded-full transition-all ${
+                      i < mcqProgress 
+                        ? mcqAnswers[i] === topic.mcqs[i].correctIndex 
+                          ? 'bg-green-500' 
+                          : 'bg-red-400'
+                        : 'bg-[var(--border)]'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              <div className="bg-[var(--surface-light)] rounded-2xl border border-[var(--border)] p-6">
+                <div className="text-sm font-medium text-[var(--text-muted)] mb-1">
+                  Question {mcqIndex + 1} of {totalMcqs}
+                </div>
+                <div className="text-lg font-semibold mb-5 text-[var(--text-primary)]">
+                  {topic.mcqs[mcqIndex].question}
+                </div>
+                
+                <div className="flex flex-col gap-3">
+                  {topic.mcqs[mcqIndex].options.map((opt: string, i: number) => {
+                    const isSelected = mcqAnswers[mcqIndex] === i;
+                    const isCorrect = topic.mcqs[mcqIndex].correctIndex === i;
+                    const hasAnswered = mcqAnswers[mcqIndex] !== undefined;
+                    
+                    let btnClass = "border-[var(--border)] hover:border-[var(--primary)] hover:bg-[var(--primary-light)] bg-white";
+                    if (hasAnswered) {
+                      if (isCorrect) btnClass = "bg-green-50 border-green-500 text-green-800";
+                      else if (isSelected && !isCorrect) btnClass = "bg-red-50 border-red-500 text-red-800";
+                      else btnClass = "bg-white opacity-50";
+                    }
+
+                    return (
+                      <button 
+                        key={i} 
+                        onClick={() => handleMcqSelect(i)}
+                        disabled={hasAnswered}
+                        className={`w-full text-left px-5 py-4 min-h-[52px] rounded-xl border-2 ${btnClass} font-medium transition-all`}
+                      >
+                        <span className="inline-block w-6 h-6 rounded-full bg-[var(--surface-light)] text-center mr-3 text-sm font-bold">
+                          {String.fromCharCode(65 + i)}
+                        </span>
+                        {opt}
+                        {hasAnswered && isCorrect && <span className="ml-3 text-green-600">✅</span>}
+                        {hasAnswered && isSelected && !isCorrect && <span className="ml-3 text-red-600">✖️</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {mcqAnswers[mcqIndex] !== undefined && (
+                  <div className="mt-5 p-4 bg-white rounded-xl border border-[var(--border)] animate-fade-in">
+                    <div className="flex items-start gap-2">
+                      <div className="w-6 h-6 rounded-full bg-[var(--primary-light)] flex items-center justify-center shrink-0 mt-0.5">
+                        <Sparkles size={14} className="text-[var(--primary)]" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold uppercase text-[var(--text-muted)] tracking-wider mb-1">Explanation</div>
+                        <p className="text-sm text-[var(--text-primary)]">{topic.mcqs[mcqIndex].explanation}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-6 flex gap-3">
+                  {mcqAnswers[mcqIndex] !== undefined && mcqIndex < totalMcqs - 1 && (
+                    <button 
+                      onClick={() => setMcqIndex(i => i + 1)}
+                      className="flex-1 bg-[var(--primary)] text-white py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity"
+                    >
+                      Next Question →
+                    </button>
+                  )}
+                  {isMcqComplete && (
+                    <div className="w-full bg-gradient-to-r from-[#14B8A6]/10 to-[#F5C842]/10 border border-[#14B8A6]/30 rounded-xl p-4 text-center">
+                      <Trophy size={24} className="text-[var(--accent-warm)] mx-auto mb-1" />
+                      <p className="font-bold text-[var(--primary)]">Practice Complete! 🎉</p>
+                      <p className="text-sm text-[var(--text-muted)]">
+                        Score: {mcqAnswers.filter((a, i) => a === topic.mcqs[i].correctIndex).length}/{totalMcqs} correct
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Essay Section */}
+          {topic.essayPrompt && (
+            <div className="mt-12 bg-gradient-to-br from-white to-[var(--surface-light)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-[#7C3AED]/10 rounded-full flex items-center justify-center">
+                  <svg className="w-5 h-5 text-[#7C3AED]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </div>
+                <h3 className="font-bold text-xl">Essay Task</h3>
+              </div>
+              <p className="mb-4 text-[var(--text-muted)] italic text-sm leading-relaxed">{topic.essayPrompt}</p>
+              
+              <textarea 
+                value={essayText}
+                onChange={e => setEssayText(e.target.value)}
+                placeholder="Write your essay here..."
+                className="w-full h-48 p-4 border-2 border-[var(--border)] rounded-xl bg-white resize-none font-body text-sm focus:outline-none focus:border-[var(--primary)] transition-colors"
+              />
+              
               <button 
-                onClick={() => setMcqIndex(i => i + 1)}
-                className="mt-6 w-full bg-[#1A1714] text-white py-3 rounded-full font-semibold"
+                onClick={submitEssay}
+                disabled={grading || !essayText.trim()}
+                className="w-full bg-gradient-to-r from-[var(--primary)] to-[var(--primary)]/80 text-white py-4 rounded-xl font-semibold mt-4 disabled:opacity-50 transition-opacity hover:shadow-lg"
               >
-                Next Question
+                {grading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    Grading...
+                  </span>
+                ) : (
+                  'Submit for AI Grading'
+                )}
               </button>
-            )}
-            
-            {mcqAnswers[mcqIndex] !== undefined && mcqIndex === topic.mcqs.length - 1 && (
-               <div className="mt-6 text-center text-[var(--primary)] font-bold text-lg">
-                 Practice complete!
-               </div>
-            )}
-          </div>
-        )}
 
-        {/* Essay Section */}
-        {topic.essayPrompt && (
-          <div className="mt-12 bg-white border border-[var(--border)] rounded-2xl p-6 shadow-sm">
-            <h3 className="font-bold text-xl mb-4 text-[var(--text-primary)]">✍️ Essay Task</h3>
-            <p className="mb-4 italic text-[var(--text-muted)] text-sm">{topic.essayPrompt}</p>
-            
-            <textarea 
-              value={essayText}
-              onChange={e => setEssayText(e.target.value)}
-              placeholder="Write your essay here..."
-              className="w-full h-48 p-4 border border-[var(--border)] rounded-xl bg-[var(--surface-light)] resize-none font-body text-sm mb-4 focus:outline-none focus:border-[var(--primary)]"
-            />
-            
-            <button 
-              onClick={submitEssay}
-              disabled={grading || !essayText.trim()}
-              className="w-full bg-[var(--primary)] text-white py-4 rounded-full font-semibold disabled:opacity-50"
-            >
-              {grading ? 'Grading...' : 'Submit for AI Grading'}
-            </button>
-
-            {gradeResult && (
-              <div className="mt-6 border-t border-[var(--border)] pt-4 animate-fade-in">
-                 <div className="text-2xl font-bold text-[var(--primary)] mb-2">Score: {gradeResult.score} / {gradeResult.total}</div>
-                 <p className="text-sm bg-[var(--surface-light)] p-4 rounded-xl mb-4">{gradeResult.feedback}</p>
-                 <h4 className="font-bold text-sm mb-2 uppercase text-[var(--text-muted)]">Rubric Breakdown</h4>
-                 <ul className="text-sm grid gap-2">
-                   {Object.entries(gradeResult.rubricBreakdown).map(([k, v]: any) => (
-                     <li key={k} className="flex justify-between border-b border-[var(--border)] pb-1"><span className="truncate mr-4">{k}</span> <span className="font-bold">{v}</span></li>
-                   ))}
-                 </ul>
-              </div>
-            )}
-          </div>
-        )}
+              {gradeResult && (
+                <div className="mt-6 border-t border-[var(--border)] pt-6 animate-fade-in">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--accent-warm)] flex items-center justify-center text-white text-2xl font-bold">
+                      {gradeResult.score}%
+                    </div>
+                    <div>
+                      <div className="font-bold text-lg">AI Feedback</div>
+                      <div className="text-sm text-[var(--text-muted)]">{gradeResult.feedback}</div>
+                    </div>
+                  </div>
+                  <div className="bg-[var(--surface-light)] rounded-xl p-4">
+                    <h4 className="font-bold text-sm uppercase text-[var(--text-muted)] tracking-wider mb-3">Rubric Breakdown</h4>
+                    <div className="grid gap-2">
+                      {Object.entries(gradeResult.rubricBreakdown || {}).map(([k, v]: any) => (
+                        <div key={k} className="flex justify-between items-center border-b border-[var(--border)] pb-2">
+                          <span className="text-sm">{k}</span>
+                          <span className="font-bold text-[var(--primary)]">{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Floating Tutor Button */}
@@ -391,25 +522,39 @@ export default function NotesView({ route, navigate, profile, showToast, onUpdat
         {!chatOpen ? (
           <button 
             onClick={() => setChatOpen(true)}
-            className="w-14 h-14 bg-[var(--accent-warm)] text-white rounded-full flex justify-center items-center shadow-2xl hover:scale-105 transition-transform"
+            className="w-14 h-14 bg-gradient-to-br from-[var(--accent-warm)] to-[#F5C842] text-white rounded-full flex justify-center items-center shadow-2xl hover:scale-105 transition-transform"
           >
             💬
           </button>
         ) : (
-          <div className="bg-white border text-[var(--text-primary)] border-[var(--border)] w-80 h-96 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fade-in font-body">
-            <div className="bg-[var(--accent-warm)] text-white px-4 py-3 font-bold flex justify-between items-center">
-              Tutor
-              <button onClick={() => setChatOpen(false)} className="text-white hover:text-gray-200">✕</button>
+          <div className="bg-[var(--surface)] border border-[var(--border)] w-80 h-96 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fade-in">
+            <div className="bg-gradient-to-r from-[var(--accent-warm)] to-[#F5C842] text-white px-4 py-3 font-bold flex justify-between items-center">
+              <span className="flex items-center gap-2">
+                <Sparkles size={16} />
+                AI Tutor
+              </span>
+              <button onClick={() => setChatOpen(false)} className="text-white/80 hover:text-white">✕</button>
             </div>
             
             <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 bg-[var(--surface-light)]">
-               {chatHistory.length === 0 && <div className="text-xs text-center text-[var(--text-muted)] my-auto">Ask a question about this topic!</div>}
-               {chatHistory.map((m, i) => (
-                 <div key={i} className={`p-3 rounded-2xl text-sm max-w-[85%] ${m.role === 'user' ? 'bg-[#12110E] text-white self-end rounded-tr-none' : 'bg-white border border-[var(--border)] self-start rounded-tl-none'}`}>
-                    {m.content}
-                 </div>
-               ))}
-               {isChatting && <div className="p-3 bg-white border border-[var(--border)] self-start rounded-2xl rounded-tl-none text-xs text-[var(--text-muted)] italic">Typing...</div>}
+              {chatHistory.length === 0 && (
+                <div className="text-center text-[var(--text-muted)] my-auto">
+                  <div className="text-4xl mb-2">🤔</div>
+                  <p className="text-sm">Ask a question about this topic!</p>
+                </div>
+              )}
+              {chatHistory.map((m, i) => (
+                <div key={i} className={`p-3 rounded-2xl text-sm max-w-[85%] ${m.role === 'user' ? 'bg-[var(--primary)] text-white self-end rounded-tr-none' : 'bg-white border border-[var(--border)] self-start rounded-tl-none'}`}>
+                  {m.content}
+                </div>
+              ))}
+              {isChatting && (
+                <div className="bg-white border border-[var(--border)] self-start rounded-2xl rounded-tl-none px-4 py-2 text-sm text-[var(--text-muted)]">
+                  <span className="inline-block w-2 h-2 bg-[var(--text-muted)] rounded-full animate-pulse mr-1"></span>
+                  <span className="inline-block w-2 h-2 bg-[var(--text-muted)] rounded-full animate-pulse delay-75 mr-1"></span>
+                  <span className="inline-block w-2 h-2 bg-[var(--text-muted)] rounded-full animate-pulse delay-150"></span>
+                </div>
+              )}
             </div>
 
             <div className="p-3 bg-white border-t border-[var(--border)] flex gap-2">
@@ -418,10 +563,14 @@ export default function NotesView({ route, navigate, profile, showToast, onUpdat
                 value={chatMessage}
                 onChange={e => setChatMessage(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && sendChatMessage()}
-                placeholder="Ask..."
-                className="flex-1 bg-[var(--surface-light)] outline-none border border-[var(--border)] px-3 py-2 rounded-full text-sm"
+                placeholder="Ask a question..."
+                className="flex-1 bg-[var(--surface-light)] outline-none border border-[var(--border)] px-4 py-2 rounded-full text-sm"
               />
-              <button onClick={sendChatMessage} disabled={isChatting || !chatMessage.trim()} className="bg-[#12110E] text-white w-10 h-10 rounded-full flex justify-center items-center disabled:opacity-50">
+              <button 
+                onClick={sendChatMessage} 
+                disabled={isChatting || !chatMessage.trim()} 
+                className="bg-[var(--primary)] text-white w-10 h-10 rounded-full flex justify-center items-center disabled:opacity-50 transition-opacity"
+              >
                 <Send size={16} />
               </button>
             </div>
@@ -431,4 +580,4 @@ export default function NotesView({ route, navigate, profile, showToast, onUpdat
 
     </div>
   );
-}
+      }
