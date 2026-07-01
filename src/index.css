@@ -1,48 +1,55 @@
 @import "tailwindcss";
 
 @theme {
+  /* ════════════════════════════════════════════════════════════
+     ☀️ LIGHT MODE (default) — genuine light surfaces + dark text.
+     Previously this block duplicated the dark palette almost
+     exactly, so toggling data-theme had no visible effect and
+     white-background cards ended up with white text on them.
+     ════════════════════════════════════════════════════════════ */
+
   /* ── Primary Colors ─────────────────────────────────────── */
-  --color-primary: #2DD4BF;          /* Vibrant teal */
-  --color-primary-dark: #0D9488;
+  --color-primary: #0D9488;          /* Teal-600: deeper, for contrast on white */
+  --color-primary-dark: #115E59;
   --color-primary-light: #CCFBF1;
-  --color-primary-gradient: linear-gradient(135deg, #2DD4BF, #FBBF24);
-  
+  --color-primary-gradient: linear-gradient(135deg, #14B8A6, #F59E0B);
+
   /* ── Accent Colors ──────────────────────────────────────── */
-  --color-accent-warm: #FBBF24;       /* Brighter warm yellow */
+  --color-accent-warm: #F59E0B;       /* Amber-500 */
   --color-accent-warm-light: #FEF3C7;
-  --color-accent-pink: #FB7185;       /* Brighter pink */
+  --color-accent-pink: #F43F5E;       /* Rose-500, deeper for light bg */
   --color-accent-purple: #F97316;     /* Warm terracotta accent */
-  --color-accent-green: #34D399;      /* Brighter green */
-  --color-accent-red: #F87171;        /* Brighter red */
-  
+  --color-accent-green: #10B981;      /* Emerald-500, deeper for light bg */
+  --color-accent-red: #EF4444;        /* Red-500, deeper for light bg */
+
   /* ── Surface Colors ────────────────────────────────────── */
-  --color-surface: #0F172A;
-  --color-surface-light: #1E293B;
-  --color-surface-muted: #1E293B;
-  --color-surface-card: #1E293B;
-  --color-surface-card-hover: #2D3B52; /* ✨ Hover state for cards */
-  
+  --color-surface: #FFFFFF;
+  --color-surface-light: #F8FAFC;
+  --color-surface-muted: #F1F5F9;
+  --color-surface-card: #FFFFFF;
+  --color-surface-card-hover: #F8FAFC;
+
   /* ── Text Colors ───────────────────────────────────────── */
-  --color-text-primary: #F1F5F9;
-  --color-text-secondary: #CBD5E1;
-  --color-text-muted: #94A3B8;
-  --color-text-inverse: #0F172A;
-  
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #334155;
+  --color-text-muted: #64748B;
+  --color-text-inverse: #F8FAFC;
+
   /* ── Border ────────────────────────────────────────────── */
-  --color-border: #475569;
-  --color-border-light: #334155;
-  --color-border-bright: #64748B;      /* ✨ Brighter border option */
-  
+  --color-border: #E2E8F0;
+  --color-border-light: #F1F5F9;
+  --color-border-bright: #CBD5E1;
+
   /* ── Shadows ───────────────────────────────────────────── */
-  --shadow-soft: 0 2px 16px rgba(0, 0, 0, 0.4);
-  --shadow-medium: 0 8px 32px rgba(0, 0, 0, 0.5);
-  --shadow-heavy: 0 20px 60px rgba(0, 0, 0, 0.6);
-  --shadow-glow-blue: 0 0 40px rgba(45, 212, 191, 0.15);
-  --shadow-glow-warm: 0 0 40px rgba(251, 191, 36, 0.15);
-  --shadow-glow-pink: 0 0 40px rgba(251, 113, 133, 0.15);
-  --shadow-glow-green: 0 0 40px rgba(52, 211, 153, 0.15);
+  --shadow-soft: 0 2px 12px rgba(15, 23, 42, 0.06);
+  --shadow-medium: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-heavy: 0 20px 40px rgba(15, 23, 42, 0.12);
+  --shadow-glow-blue: 0 0 40px rgba(13, 148, 136, 0.15);
+  --shadow-glow-warm: 0 0 40px rgba(245, 158, 11, 0.15);
+  --shadow-glow-pink: 0 0 40px rgba(244, 63, 94, 0.15);
+  --shadow-glow-green: 0 0 40px rgba(16, 185, 129, 0.15);
   --shadow-glow-purple: 0 0 40px rgba(249, 115, 22, 0.15);
-  
+
   /* ── Radius ────────────────────────────────────────────── */
   --radius-card: 20px;
   --radius-button: 12px;
