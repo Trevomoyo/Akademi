@@ -62,6 +62,44 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* ── Bare-name aliases ─────────────────────────────────────
+     Components reference tokens as var(--primary), var(--surface),
+     var(--border), etc. (no "color-" prefix), while the design
+     tokens above are defined as --color-primary, --color-surface,
+     --color-border (Tailwind v4 @theme convention). Without these
+     aliases every var(--x) call in components resolves to nothing —
+     panels render with transparent backgrounds/borders and page
+     content bleeds through them. These aliases point at the live
+     --color-* value, so they automatically track light/dark mode. */
+  :root {
+    --primary: var(--color-primary);
+    --primary-dark: var(--color-primary-dark);
+    --primary-light: var(--color-primary-light);
+    --primary-gradient: var(--color-primary-gradient);
+
+    --accent-warm: var(--color-accent-warm);
+    --accent-warm-light: var(--color-accent-warm-light);
+    --accent-pink: var(--color-accent-pink);
+    --accent-purple: var(--color-accent-purple);
+    --accent-green: var(--color-accent-green);
+    --accent-red: var(--color-accent-red);
+
+    --surface: var(--color-surface);
+    --surface-light: var(--color-surface-light);
+    --surface-muted: var(--color-surface-muted);
+    --surface-card: var(--color-surface-card);
+    --surface-card-hover: var(--color-surface-card-hover);
+
+    --text-primary: var(--color-text-primary);
+    --text-secondary: var(--color-text-secondary);
+    --text-muted: var(--color-text-muted);
+    --text-inverse: var(--color-text-inverse);
+
+    --border: var(--color-border);
+    --border-light: var(--color-border-light);
+    --border-bright: var(--color-border-bright);
+  }
+
   body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     background-color: #F1F5F9;
