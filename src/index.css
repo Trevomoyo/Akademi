@@ -2,16 +2,16 @@
 
 @theme {
   /* ── Primary Colors ─────────────────────────────────────── */
-  --color-primary: #38BDF8;          /* Brighter blue for dark mode */
-  --color-primary-dark: #0EA5E9;
-  --color-primary-light: #E0F2FE;
-  --color-primary-gradient: linear-gradient(135deg, #38BDF8, #A78BFA);
+  --color-primary: #2DD4BF;          /* Vibrant teal */
+  --color-primary-dark: #0D9488;
+  --color-primary-light: #CCFBF1;
+  --color-primary-gradient: linear-gradient(135deg, #2DD4BF, #FBBF24);
   
   /* ── Accent Colors ──────────────────────────────────────── */
   --color-accent-warm: #FBBF24;       /* Brighter warm yellow */
   --color-accent-warm-light: #FEF3C7;
-  --color-accent-pink: #F472B6;       /* Brighter pink */
-  --color-accent-purple: #A78BFA;     /* Brighter purple */
+  --color-accent-pink: #FB7185;       /* Brighter pink */
+  --color-accent-purple: #F97316;     /* Warm terracotta accent */
   --color-accent-green: #34D399;      /* Brighter green */
   --color-accent-red: #F87171;        /* Brighter red */
   
@@ -37,11 +37,11 @@
   --shadow-soft: 0 2px 16px rgba(0, 0, 0, 0.4);
   --shadow-medium: 0 8px 32px rgba(0, 0, 0, 0.5);
   --shadow-heavy: 0 20px 60px rgba(0, 0, 0, 0.6);
-  --shadow-glow-blue: 0 0 40px rgba(56, 189, 248, 0.15);
+  --shadow-glow-blue: 0 0 40px rgba(45, 212, 191, 0.15);
   --shadow-glow-warm: 0 0 40px rgba(251, 191, 36, 0.15);
-  --shadow-glow-pink: 0 0 40px rgba(244, 114, 182, 0.15);
+  --shadow-glow-pink: 0 0 40px rgba(251, 113, 133, 0.15);
   --shadow-glow-green: 0 0 40px rgba(52, 211, 153, 0.15);
-  --shadow-glow-purple: 0 0 40px rgba(167, 139, 250, 0.15);
+  --shadow-glow-purple: 0 0 40px rgba(249, 115, 22, 0.15);
   
   /* ── Radius ────────────────────────────────────────────── */
   --radius-card: 20px;
@@ -82,11 +82,11 @@
 
   /* ── Selection ──────────────────────────────────────────── */
   ::selection {
-    background: #38BDF8;
+    background: #2DD4BF;
     color: #0F172A;
   }
   ::-moz-selection {
-    background: #38BDF8;
+    background: #2DD4BF;
     color: #0F172A;
   }
 
@@ -119,15 +119,15 @@
     --color-surface-card-hover: #2D3B52;
     
     /* ── Primary — Brighter ────────────────────────────── */
-    --color-primary: #38BDF8;
-    --color-primary-dark: #0EA5E9;
-    --color-primary-light: #0C4A6E;
+    --color-primary: #2DD4BF;
+    --color-primary-dark: #0D9488;
+    --color-primary-light: #134E4A;
     
     /* ── Accents — Brighter ────────────────────────────── */
     --color-accent-warm: #FBBF24;
     --color-accent-warm-light: #78350F;
-    --color-accent-pink: #F472B6;
-    --color-accent-purple: #A78BFA;
+    --color-accent-pink: #FB7185;
+    --color-accent-purple: #FB923C;
     --color-accent-green: #34D399;
     --color-accent-red: #F87171;
     
@@ -161,7 +161,7 @@
   }
 
   [data-theme='dark'] ::selection {
-    background: #38BDF8;
+    background: #2DD4BF;
     color: #0F172A;
   }
 
@@ -216,7 +216,7 @@
 
 /* ── Gradient Cards ───────────────────────────────────────── */
 .card-gradient-blue {
-  background: linear-gradient(135deg, #0EA5E9, #8B5CF6);
+  background: linear-gradient(135deg, #0D9488, #F59E0B);
   color: white;
   border: none;
 }
@@ -226,12 +226,12 @@
   border: none;
 }
 .card-gradient-green {
-  background: linear-gradient(135deg, #10B981, #0EA5E9);
+  background: linear-gradient(135deg, #10B981, #0D9488);
   color: white;
   border: none;
 }
 .card-gradient-pink {
-  background: linear-gradient(135deg, #EC4899, #8B5CF6);
+  background: linear-gradient(135deg, #F43F5E, #F97316);
   color: white;
   border: none;
 }
@@ -259,13 +259,13 @@
 
 /* ── Glow Effects ─────────────────────────────────────────── */
 .glow-blue {
-  box-shadow: 0 0 40px rgba(14, 165, 233, 0.15);
+  box-shadow: 0 0 40px rgba(13, 148, 136, 0.15);
 }
 .glow-warm {
   box-shadow: 0 0 40px rgba(245, 158, 11, 0.15);
 }
 .glow-pink {
-  box-shadow: 0 0 40px rgba(236, 72, 153, 0.15);
+  box-shadow: 0 0 40px rgba(244, 63, 94, 0.15);
 }
 .glow-green {
   box-shadow: 0 0 40px rgba(16, 185, 129, 0.15);
@@ -273,24 +273,24 @@
 
 /* 🌙 Dark Mode Glows — More Vibrant */
 [data-theme='dark'] .glow-blue {
-  box-shadow: 0 0 60px rgba(56, 189, 248, 0.20);
+  box-shadow: 0 0 60px rgba(45, 212, 191, 0.20);
 }
 [data-theme='dark'] .glow-warm {
   box-shadow: 0 0 60px rgba(251, 191, 36, 0.20);
 }
 [data-theme='dark'] .glow-pink {
-  box-shadow: 0 0 60px rgba(244, 114, 182, 0.20);
+  box-shadow: 0 0 60px rgba(251, 113, 133, 0.20);
 }
 [data-theme='dark'] .glow-green {
   box-shadow: 0 0 60px rgba(52, 211, 153, 0.20);
 }
 [data-theme='dark'] .glow-purple {
-  box-shadow: 0 0 60px rgba(167, 139, 250, 0.20);
+  box-shadow: 0 0 60px rgba(249, 115, 22, 0.20);
 }
 
 /* ── Buttons ───────────────────────────────────────────────── */
 .btn-primary {
-  background: linear-gradient(135deg, #0EA5E9, #8B5CF6);
+  background: linear-gradient(135deg, #0D9488, #F59E0B);
   color: white;
   border: none;
   padding: 12px 28px;
@@ -299,11 +299,11 @@
   font-size: 0.95rem;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.25);
+  box-shadow: 0 4px 20px rgba(13, 148, 136, 0.25);
 }
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(14, 165, 233, 0.35);
+  box-shadow: 0 8px 30px rgba(13, 148, 136, 0.35);
 }
 .btn-primary:active {
   transform: scale(0.97);
@@ -311,11 +311,11 @@
 
 /* 🌙 Dark Mode Buttons — Brighter */
 [data-theme='dark'] .btn-primary {
-  background: linear-gradient(135deg, #38BDF8, #A78BFA);
-  box-shadow: 0 4px 24px rgba(56, 189, 248, 0.30);
+  background: linear-gradient(135deg, #2DD4BF, #FBBF24);
+  box-shadow: 0 4px 24px rgba(45, 212, 191, 0.30);
 }
 [data-theme='dark'] .btn-primary:hover {
-  box-shadow: 0 8px 36px rgba(56, 189, 248, 0.45);
+  box-shadow: 0 8px 36px rgba(45, 212, 191, 0.45);
 }
 
 .btn-secondary {
@@ -382,8 +382,8 @@
   text-transform: uppercase;
 }
 .badge-blue {
-  background: #DBEAFE;
-  color: #1D4ED8;
+  background: #CCFBF1;
+  color: #0F766E;
 }
 .badge-warm {
   background: #FEF3C7;
@@ -398,8 +398,8 @@
   color: #BE185D;
 }
 .badge-purple {
-  background: #EDE9FE;
-  color: #5B21B6;
+  background: #FFEDD5;
+  color: #9A3412;
 }
 .badge-red {
   background: #FEE2E2;
@@ -408,9 +408,9 @@
 
 /* 🌙 Dark Mode Badges — Brighter & More Vibrant */
 [data-theme='dark'] .badge-blue {
-  background: #1E3A5F;
-  color: #7DD3FC;
-  border: 1px solid #0EA5E9;
+  background: #134E4A;
+  color: #5EEAD4;
+  border: 1px solid #0D9488;
 }
 [data-theme='dark'] .badge-warm {
   background: #78350F;
@@ -423,14 +423,14 @@
   border: 1px solid #10B981;
 }
 [data-theme='dark'] .badge-pink {
-  background: #831843;
-  color: #F9A8D4;
-  border: 1px solid #EC4899;
+  background: #881337;
+  color: #FDA4AF;
+  border: 1px solid #FB7185;
 }
 [data-theme='dark'] .badge-purple {
-  background: #4C1D95;
-  color: #C4B5FD;
-  border: 1px solid #8B5CF6;
+  background: #7C2D12;
+  color: #FDBA74;
+  border: 1px solid #F97316;
 }
 [data-theme='dark'] .badge-red {
   background: #7F1D1D;
@@ -452,8 +452,8 @@
   outline: none;
 }
 .input:focus {
-  border-color: #0EA5E9;
-  box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
+  border-color: #0D9488;
+  box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1);
 }
 .input::placeholder {
   color: #94A3B8;
@@ -465,8 +465,8 @@
   color: #F8FAFC;
 }
 [data-theme='dark'] .input:focus {
-  border-color: #38BDF8;
-  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.15);
+  border-color: #2DD4BF;
+  box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.15);
 }
 [data-theme='dark'] .input::placeholder {
   color: #64748B;
@@ -486,8 +486,8 @@
   to { opacity: 1; transform: translateX(0); }
 }
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(56, 189, 248, 0.2); }
-  50% { box-shadow: 0 0 40px rgba(56, 189, 248, 0.4); }
+  0%, 100% { box-shadow: 0 0 20px rgba(45, 212, 191, 0.2); }
+  50% { box-shadow: 0 0 40px rgba(45, 212, 191, 0.4); }
 }
 @keyframes float {
   0%, 100% { transform: translateY(0); }
@@ -533,13 +533,13 @@
   font-size: 2.2rem;
   margin-top: 2rem;
   margin-bottom: 1rem;
-  background: linear-gradient(135deg, #0EA5E9, #8B5CF6);
+  background: linear-gradient(135deg, #0D9488, #F59E0B);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 [data-theme='dark'] .lesson-body h1 {
-  background: linear-gradient(135deg, #38BDF8, #A78BFA);
+  background: linear-gradient(135deg, #2DD4BF, #FBBF24);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -550,12 +550,12 @@
   margin-top: 2.5rem;
   margin-bottom: 0.75rem;
   padding-left: 1rem;
-  border-left: 4px solid #0EA5E9;
+  border-left: 4px solid #0D9488;
   color: #0F172A;
 }
 [data-theme='dark'] .lesson-body h2 {
   color: #F8FAFC;
-  border-left-color: #38BDF8;
+  border-left-color: #2DD4BF;
 }
 
 .lesson-body h3 {
@@ -573,36 +573,36 @@
 }
 
 .lesson-body strong {
-  color: #0EA5E9;
+  color: #0D9488;
   font-weight: 600;
 }
 [data-theme='dark'] .lesson-body strong {
-  color: #38BDF8;
+  color: #2DD4BF;
 }
 
 .lesson-body blockquote {
-  border-left: 4px solid #0EA5E9;
+  border-left: 4px solid #0D9488;
   padding: 1rem 1.5rem;
   margin: 1.5rem 0;
-  background: #F0F9FF;
+  background: #F0FDFA;
   border-radius: 0 12px 12px 0;
   font-style: italic;
   color: #334155;
 }
 [data-theme='dark'] .lesson-body blockquote {
-  background: #0C4A6E;
-  border-left-color: #38BDF8;
+  background: #134E4A;
+  border-left-color: #2DD4BF;
   color: #E2E8F0;
 }
 
 .lesson-body hr {
   border: none;
   height: 2px;
-  background: linear-gradient(90deg, #E2E8F0, #0EA5E9, #E2E8F0);
+  background: linear-gradient(90deg, #E2E8F0, #0D9488, #E2E8F0);
   margin: 2rem 0;
 }
 [data-theme='dark'] .lesson-body hr {
-  background: linear-gradient(90deg, #334155, #38BDF8, #334155);
+  background: linear-gradient(90deg, #334155, #2DD4BF, #334155);
 }
 
 .lesson-body .katex-display {
@@ -622,14 +622,14 @@
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 .lesson-body th {
-  background: #0EA5E9;
+  background: #0D9488;
   color: white;
   font-weight: 600;
   padding: 12px 16px;
   text-align: left;
 }
 [data-theme='dark'] .lesson-body th {
-  background: #0C4A6E;
+  background: #134E4A;
   color: #F8FAFC;
 }
 .lesson-body td {
@@ -646,10 +646,10 @@
   background: #1E293B;
 }
 .lesson-body tr:hover {
-  background: #F0F9FF;
+  background: #F0FDFA;
 }
 [data-theme='dark'] .lesson-body tr:hover {
-  background: #0C4A6E;
+  background: #134E4A;
 }
 
 /* ── Progress Bar ──────────────────────────────────────────── */
@@ -661,7 +661,7 @@
 }
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #0EA5E9, #8B5CF6);
+  background: linear-gradient(90deg, #0D9488, #F59E0B);
   border-radius: 9999px;
   transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -669,7 +669,7 @@
   background: #334155;
 }
 [data-theme='dark'] .progress-bar-fill {
-  background: linear-gradient(90deg, #38BDF8, #A78BFA);
+  background: linear-gradient(90deg, #2DD4BF, #FBBF24);
 }
 
 /* ── Star Field Background ────────────────────────────────── */
@@ -715,13 +715,13 @@
 
 /* ── Gradient Text ─────────────────────────────────────────── */
 .text-gradient {
-  background: linear-gradient(135deg, #0EA5E9, #8B5CF6);
+  background: linear-gradient(135deg, #0D9488, #F59E0B);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 [data-theme='dark'] .text-gradient {
-  background: linear-gradient(135deg, #38BDF8, #A78BFA);
+  background: linear-gradient(135deg, #2DD4BF, #FBBF24);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -741,26 +741,26 @@
 }
 
 .text-gradient-green {
-  background: linear-gradient(135deg, #10B981, #0EA5E9);
+  background: linear-gradient(135deg, #10B981, #0D9488);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 [data-theme='dark'] .text-gradient-green {
-  background: linear-gradient(135deg, #34D399, #38BDF8);
+  background: linear-gradient(135deg, #34D399, #2DD4BF);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .text-gradient-pink {
-  background: linear-gradient(135deg, #EC4899, #8B5CF6);
+  background: linear-gradient(135deg, #F43F5E, #F97316);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 [data-theme='dark'] .text-gradient-pink {
-  background: linear-gradient(135deg, #F472B6, #A78BFA);
+  background: linear-gradient(135deg, #FB7185, #FB923C);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
