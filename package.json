@@ -2,7 +2,7 @@
   "name": "react-example",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
+  "type": "commonjs",
   "scripts": {
     "dev":        "concurrently -n server,vite -c cyan,green \"tsx --env-file=.env server.ts\" \"vite\"",
     "dev:server": "tsx --env-file=.env server.ts",
