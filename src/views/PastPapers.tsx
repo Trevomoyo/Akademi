@@ -47,7 +47,7 @@ export default function PastPapers({ navigate, profile }: any) {
       window.open(p.fileUrl, '_blank');
     } else {
       // placeholder — real URL not yet uploaded
-      alert('This paper is not yet available for download. Check back soon.');
+      showToast('This paper is not yet available. Check back soon.');
     }
   };
 
