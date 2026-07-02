@@ -2,7 +2,7 @@
   "name": "react-example",
   "private": true,
   "version": "0.0.0",
-  "type": "commonjs",
+  "type": "module",
   "scripts": {
     "dev":        "concurrently -n server,vite -c cyan,green \"tsx --env-file=.env server.ts\" \"vite\"",
     "dev:server": "tsx --env-file=.env server.ts",
@@ -16,6 +16,7 @@
   "dependencies": {
     "@google/genai": "^2.4.0",
     "@supabase/supabase-js": "^2.49.0",
+    "express-rate-limit": "^7.5.0",
     "@tailwindcss/vite": "^4.1.14",
     "@types/canvas-confetti": "^1.9.0",
     "@types/cors": "^2.8.19",
