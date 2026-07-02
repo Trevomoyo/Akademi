@@ -256,6 +256,122 @@ function renderMarkdownWithKaTeX(markdown: string, themeColor: string) {
   });
 }
 
+// ── Compact markdown + KaTeX renderer for chat bubbles ─────────────────────
+// Same bold/inline-math/display-math/list handling as renderMarkdownWithKaTeX
+// above, but sized for a narrow chat bubble instead of a full lesson page
+// (no h2/h3 headers, no big margins, no tables — tutor replies are prose).
+function renderChatMarkdown(markdown: string, themeColor: string): React.ReactNode {
+  const segments: { text: string; math: boolean; display: boolean }[] = [];
+  let remaining = markdown;
+  const displayRe = /\$\$([\s\S]*?)\$\$/g;
+  const inlineRe = /\$((?:[^$\\]|\\.)+?)\$/g;
+
+  let last = 0;
+  let m: RegExpExecArray | null;
+  displayRe.lastIndex = 0;
+  while ((m = displayRe.exec(remaining)) !== null) {
+    if (m.index > last) segments.push({ text: remaining.slice(last, m.index), math: false, display: false });
+    segments.push({ text: m[1], math: true, display: true });
+    last = m.index + m[0].length;
+  }
+  segments.push({ text: remaining.slice(last), math: false, display: false });
+
+  const finalSegments: { text: string; math: boolean; display: boolean }[] = [];
+  for (const seg of segments) {
+    if (seg.math) { finalSegments.push(seg); continue; }
+    let l = 0;
+    inlineRe.lastIndex = 0;
+    while ((m = inlineRe.exec(seg.text)) !== null) {
+      if (m.index > l) finalSegments.push({ text: seg.text.slice(l, m.index), math: false, display: false });
+      finalSegments.push({ text: m[1], math: true, display: false });
+      l = m.index + m[0].length;
+    }
+    finalSegments.push({ text: seg.text.slice(l), math: false, display: false });
+  }
+
+  const renderBold = (text: string): React.ReactNode =>
+    text.split(/\*\*(.*?)\*\*/g).map((p, j) =>
+      j % 2 === 1 ? <strong key={j} className="font-semibold">{p}</strong> : p
+    );
+
+  return finalSegments.map((seg, index) => {
+    if (seg.math) {
+      try {
+        const html = katex.renderToString(seg.text, { throwOnError: false, displayMode: seg.display });
+        if (seg.display) {
+          return (
+            <div
+              key={index}
+              className="my-2 py-2 px-2 rounded-lg overflow-x-auto text-center"
+              style={{ backgroundColor: themeColor + '0D', border: `1px solid ${themeColor}30` }}
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          );
+        }
+        return <span key={index} dangerouslySetInnerHTML={{ __html: html }} />;
+      } catch {
+        return <span key={index} className="text-red-500">[Math error]</span>;
+      }
+    }
+
+    const lines = seg.text.split('\n');
+    const nodes: React.ReactNode[] = [];
+    let i = 0;
+
+    while (i < lines.length) {
+      const line = lines[i];
+
+      if (line.trim() === '') { i++; continue; }
+
+      // Bullet list
+      if (line.startsWith('- ') || line.startsWith('* ')) {
+        const items: string[] = [];
+        while (i < lines.length && (lines[i].startsWith('- ') || lines[i].startsWith('* '))) {
+          items.push(lines[i].slice(2));
+          i++;
+        }
+        nodes.push(
+          <ul key={`ul-${i}`} className="my-1.5 flex flex-col gap-1">
+            {items.map((item, idx) => (
+              <li key={idx} className="flex items-start gap-1.5">
+                <span className="w-1 h-1 rounded-full mt-1.5 shrink-0" style={{ backgroundColor: themeColor }} />
+                <span>{renderBold(item)}</span>
+              </li>
+            ))}
+          </ul>
+        );
+        continue;
+      }
+
+      // Numbered list
+      if (/^\d+\. /.test(line)) {
+        const items: string[] = [];
+        while (i < lines.length && /^\d+\. /.test(lines[i])) {
+          items.push(lines[i].replace(/^\d+\. /, ''));
+          i++;
+        }
+        nodes.push(
+          <ol key={`ol-${i}`} className="my-1.5 flex flex-col gap-1 list-none">
+            {items.map((item, idx) => (
+              <li key={idx} className="flex items-start gap-1.5">
+                <span className="font-bold shrink-0" style={{ color: themeColor }}>{idx + 1}.</span>
+                <span>{renderBold(item)}</span>
+              </li>
+            ))}
+          </ol>
+        );
+        continue;
+      }
+
+      // Plain paragraph line
+      nodes.push(<p key={i} className="leading-relaxed">{renderBold(line)}</p>);
+      i++;
+    }
+
+    return <React.Fragment key={index}>{nodes}</React.Fragment>;
+  });
+}
+
 // ── MCQ option label A B C D ───────────────────────────────────────────────
 const OPTION_LABELS = ['A', 'B', 'C', 'D', 'E'];
 
@@ -800,7 +916,7 @@ export default function NotesView({ route, navigate, profile, showToast, onUpdat
                   }`}
                   style={msg.role === 'user' ? { backgroundColor: tc } : {}}
                 >
-                  {msg.content}
+                  {msg.role === 'user' ? msg.content : renderChatMarkdown(msg.content, tc)}
                 </div>
               ))}
               {isChatting && (
