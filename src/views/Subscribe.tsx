@@ -20,7 +20,7 @@ export default function Subscribe({ navigate, profile, onUpdateProfile, showToas
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'waiting' | 'success'>('idle');
   const [pollToken, setPollToken] = useState<string | null>(null);
 
-  const price = currency === 'USD' ? '$8/month' : 'ZiG 180/month';
+  const price = currency === 'USD' ? '$1/month' : 'ZiG 36/month';
 
   const handlePay = async () => {
     if (!phone.trim()) return;
@@ -66,11 +66,10 @@ export default function Subscribe({ navigate, profile, onUpdateProfile, showToas
           setPaymentStatus('idle');
         }
       }, 3000);
-    } catch {
-      // Fallback: simulate for dev (when server not running)
-      showToast('Check your phone for a payment prompt.');
-      setPaymentStatus('waiting');
-      setTimeout(() => completePayment(), 4000);
+    } catch (err: any) {
+      console.error('Payment initiation failed:', err);
+      showToast('Could not connect to payment server. Please try again.');
+      setPaymentStatus('idle');
     }
   };
 
@@ -116,7 +115,7 @@ export default function Subscribe({ navigate, profile, onUpdateProfile, showToas
 
             {/* Price */}
             <div className="mb-6">
-              <span className="text-5xl font-display font-bold">{currency === 'USD' ? '$8' : 'ZiG 180'}</span>
+              <span className="text-5xl font-display font-bold">{currency === 'USD' ? '$1' : 'ZiG 36'}</span>
               <span className="text-[#A39E98] text-lg font-body">/month</span>
             </div>
 
@@ -172,7 +171,7 @@ export default function Subscribe({ navigate, profile, onUpdateProfile, showToas
 
         <div className="text-center mt-6 text-sm text-[#A39E98]">
           Having trouble?{' '}
-          <a href="https://wa.me/263770000000" className="text-[#14B8A6] hover:underline">WhatsApp support</a>
+          <a href="https://wa.me/263778354848" className="text-[#14B8A6] hover:underline">WhatsApp support</a>
         </div>
       </div>
     </div>
