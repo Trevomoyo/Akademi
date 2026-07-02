@@ -14,7 +14,15 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// ── Gemini ───────────────────────────────────────────────────
+// ── PayNow config ────────────────────────────────────────────
+const PAYNOW_INTEGRATION_ID  = process.env.PAYNOW_INTEGRATION_ID;
+const PAYNOW_INTEGRATION_KEY  = process.env.PAYNOW_INTEGRATION_KEY;
+const PAYNOW_RESULT_URL       = process.env.PAYNOW_RESULT_URL  ?? 'http://localhost:3001/api/webhooks/paynow';
+const PAYNOW_RETURN_URL       = process.env.PAYNOW_RETURN_URL  ?? 'http://localhost:5173/subscribe';
+const PAYNOW_ENABLED          = !!(PAYNOW_INTEGRATION_ID && PAYNOW_INTEGRATION_KEY);
+
+const PRICE_USD = 1;    // $1/month
+const PRICE_ZIG = 36;   // ZiG equivalent
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 app.use(cors({ origin: process.env.APP_URL || 'http://localhost:5173', credentials: true }));
@@ -55,7 +63,7 @@ app.get('/api/health', (_req, res) => {
 // ESSAY GRADING
 // ────────────────────────────────────────────────────────────
 app.post('/api/grade-essay', requireAuth, async (req: any, res: any): Promise<void> => {
-  const { essay, prompt, rubric, topicTitle } = req.body;
+  const { essay, prompt, rubric, topicTitle, topicId } = req.body;
 
   if (!essay || !prompt) {
     res.status(400).json({ error: 'essay and prompt are required' });
@@ -64,44 +72,60 @@ app.post('/api/grade-essay', requireAuth, async (req: any, res: any): Promise<vo
 
   try {
     const rubricText = Array.isArray(rubric) && rubric.length
-      ? `\nRubric criteria (award marks for each):\n${rubric.map((r: string, i: number) => `${i + 1}. ${r}`).join('\n')}`
+      ? `\nAward marks for each of these criteria:\n${rubric.map((r: string, i: number) => `${i + 1}. ${r}`).join('\n')}`
       : '';
 
-    const systemPrompt = `You are an experienced ZIMSEC examiner marking an O-Level or A-Level essay.
-Topic: ${topicTitle ?? 'Unknown'}
+    const userPrompt = `Topic: ${topicTitle ?? 'Unknown'}
 Essay question: ${prompt}${rubricText}
 
-Score the essay out of 100 based on:
-- Accuracy of content (40%)
-- Use of specific evidence and examples (30%)
-- Clarity and structure of argument (20%)
-- Command of English (10%)
+Student's answer:
+${essay}
 
-Respond ONLY with valid JSON in this exact format (no markdown, no preamble):
-{"score": <number 0-100>, "grade": "<A/B/C/D/E/U>", "feedback": "<2-3 sentences of specific, constructive feedback>", "strengths": ["<point>", "<point>"], "improvements": ["<point>", "<point>"]}`;
+Respond ONLY with valid JSON (no markdown, no backticks, no preamble):
+{"score": <0-100>, "grade": "<A/B/C/D/E/U>", "feedback": "<2-3 sentences of specific constructive feedback>", "strengths": ["<point>", "<point>"], "improvements": ["<point>", "<point>"]}`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.0-flash',
-      contents: [{ role: 'user', parts: [{ text: systemPrompt + '\n\nStudent essay:\n' + essay }] }],
+      config: {
+        systemInstruction: `You are an experienced ZIMSEC examiner marking O-Level and A-Level essays.
+Be fair, specific, and constructive. Use the ZIMSEC grading scale:
+A (75-100%), B (65-74%), C (55-64%), D (45-54%), E (40-44%), U (below 40%).
+Always reference the student's actual words in your feedback.
+Return ONLY a valid JSON object — no markdown, no extra text.`,
+      },
+      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
     });
 
-    const raw = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    const raw = response?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    if (!raw.trim()) {
+      console.error('Grade essay: empty response from Gemini');
+      res.status(500).json({ error: 'AI grading failed. Please try again.' });
+      return;
+    }
+
     const clean = raw.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(clean);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(clean);
+    } catch {
+      console.error('Grade essay: invalid JSON from Gemini:', raw.slice(0, 200));
+      res.status(500).json({ error: 'AI returned an invalid response. Please try again.' });
+      return;
+    }
 
     // Persist essay score to topic_progress
-    if (req.body.topicId) {
+    if (topicId) {
       await supabaseAdmin
         .from('topic_progress')
         .upsert(
-          { user_id: req.user.id, topic_id: req.body.topicId, essay_score: parsed.score, read_complete: true, mcq_score: 0 },
+          { user_id: req.user.id, topic_id: topicId, essay_score: parsed.score, read_complete: true, mcq_score: 0 },
           { onConflict: 'user_id,topic_id' }
         );
     }
 
     res.json(parsed);
   } catch (err: any) {
-    console.error('Grade essay error:', err);
+    console.error('Grade essay error:', err?.message ?? err);
     res.status(500).json({ error: 'Grading failed. Please try again.' });
   }
 });
@@ -118,32 +142,43 @@ app.post('/api/ai-chat', requireAuth, async (req: any, res: any): Promise<void> 
   }
 
   try {
-    const systemContext = `You are Akademì's AI study tutor helping a Zimbabwean secondary school student.
-Current topic: ${topicTitle ?? 'General study'}
-Subject: ${subjectName ?? 'Unknown'}
-Keep answers concise, clear, and curriculum-relevant (ZIMSEC syllabus).
-Use examples relevant to Zimbabwe where possible.`;
-
-    const contents = [
-      { role: 'user', parts: [{ text: systemContext }] },
-      { role: 'model', parts: [{ text: 'Understood. I will help with ZIMSEC-aligned content.' }] },
-      ...(history ?? []).map((h: { role: string; content: string }) => ({
-        role: h.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: h.content }],
-      })),
-      { role: 'user', parts: [{ text: message }] },
-    ];
+    // Build alternating user/model history Gemini requires strict alternation
+    const conversationHistory = (history ?? []).map((h: { role: string; content: string }) => ({
+      role: h.role === 'model' || h.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: h.content }],
+    }));
+    conversationHistory.push({ role: 'user', parts: [{ text: message }] });
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.0-flash',
-      contents,
+      config: {
+        systemInstruction: `You are an expert ZIMSEC tutor helping a Zimbabwean secondary school student.
+Current topic: ${topicTitle ?? 'General study'}
+Subject: ${subjectName ?? 'Unknown'}
+- Keep answers focused (3-6 sentences unless asked to elaborate)
+- Use Zimbabwe-specific examples (Zambezi, Hwange, sadza, EcoCash)
+- Use numbered steps for processes, bullet points for lists
+- Relate answers to what ZIMSEC examiners expect
+- Give the textbook definition first then explain it simply`,
+      },
+      contents: conversationHistory,
     });
 
-    const reply = response.candidates?.[0]?.content?.parts?.[0]?.text ?? 'Sorry, I could not generate a response.';
+    const reply =
+      response?.candidates?.[0]?.content?.parts?.[0]?.text ??
+      (response as any)?.text ??
+      '';
+
+    if (!reply.trim()) {
+      console.error('AI chat: empty response', JSON.stringify(response).slice(0, 300));
+      res.status(500).json({ error: 'Empty response from AI. Please try again.' });
+      return;
+    }
+
     res.json({ reply });
   } catch (err: any) {
-    console.error('AI chat error:', err);
-    res.status(500).json({ error: 'Chat failed. Please try again.' });
+    console.error('AI chat error:', err?.message ?? err);
+    res.status(500).json({ error: 'Tutor is unavailable right now. Please try again.' });
   }
 });
 
@@ -158,7 +193,7 @@ app.post('/api/subscriptions/initiate', requireAuth, async (req: any, res: any):
     return;
   }
 
-  const amount = currency === 'usd' ? 8 : 180;
+  const amount = currency === 'usd' ? PRICE_USD : PRICE_ZIG;
   const pollToken = 'AKD_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8).toUpperCase();
   const paynowRef = 'AKD-' + Date.now().toString().slice(-8);
 
@@ -178,9 +213,30 @@ app.post('/api/subscriptions/initiate', requireAuth, async (req: any, res: any):
     return;
   }
 
-  // TODO: call real PayNow API here when merchant account is ready
-  // const paynowRedirectUrl = await callPaynowAPI({ phone, method, amount, currency, reference: paynowRef });
-  const paynowRedirectUrl = `https://www.paynow.co.zw/payment/initiate?ref=${paynowRef}`;
+  let paynowRedirectUrl = `https://www.paynow.co.zw/payment/initiate?ref=${paynowRef}`;
+
+  if (PAYNOW_ENABLED) {
+    // Real PayNow API call — initiate the payment
+    try {
+      // PayNow expects a URL-encoded POST to their initiate endpoint
+      const params = new URLSearchParams({
+        id: PAYNOW_INTEGRATION_ID!,
+        reference: paynowRef,
+        amount: amount.toFixed(2),
+        additionalinfo: 'Akademi monthly subscription',
+        returnurl: PAYNOW_RETURN_URL,
+        resulturl: PAYNOW_RESULT_URL,
+        status: 'Message',
+        hash: '',  // TODO: compute HMAC-SHA512 hash using PAYNOW_INTEGRATION_KEY
+      });
+      // Uncomment when hash computation is implemented:
+      // const pnRes = await fetch('https://www.paynow.co.zw/interface/remotetransaction', { method: 'POST', body: params });
+      // const pnText = await pnRes.text();
+      // parse pnText for browserurl or redirecturl
+    } catch (e) {
+      console.error('PayNow initiate error:', e);
+    }
+  }
 
   res.json({ pollToken, reference: paynowRef, paynowRedirectUrl });
 });
