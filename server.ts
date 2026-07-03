@@ -12,12 +12,15 @@ const PORT = process.env.PORT || 3001;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_URL     = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
-async function callGemini(systemInstruction: string, userMessage: string, history: { role: string; text: string }[] = []): Promise<string> {
+async function callGemini(
+  systemInstruction: string,
+  userMessage: string,
+  history: { role: string; text: string }[] = [],
+  useSearch = false
+): Promise<string> {
   if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not set');
 
-  // Build contents array with strict alternating user/model turns
   const contents: any[] = [];
-
   for (const h of history) {
     contents.push({
       role: h.role === 'model' || h.role === 'assistant' ? 'model' : 'user',
@@ -26,14 +29,19 @@ async function callGemini(systemInstruction: string, userMessage: string, histor
   }
   contents.push({ role: 'user', parts: [{ text: userMessage }] });
 
-  const body = {
+  const body: any = {
     system_instruction: { parts: [{ text: systemInstruction }] },
     contents,
     generationConfig: {
       temperature: 0.7,
-      maxOutputTokens: 1024,
+      maxOutputTokens: 2048,
     },
   };
+
+  // Google Search grounding — lets Gemini verify facts it is unsure about
+  if (useSearch) {
+    body.tools = [{ google_search: {} }];
+  }
 
   const res = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
     method: 'POST',
@@ -43,14 +51,18 @@ async function callGemini(systemInstruction: string, userMessage: string, histor
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Gemini API error ${res.status}: ${errText.slice(0, 200)}`);
+    throw new Error(`Gemini API error ${res.status}: ${errText.slice(0, 300)}`);
   }
 
   const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+
+  // Join all text parts — grounded responses can have multiple parts
+  const parts = data?.candidates?.[0]?.content?.parts ?? [];
+  const text = parts.filter((p: any) => p.text).map((p: any) => p.text).join('');
 
   if (!text.trim()) {
     const reason = data?.candidates?.[0]?.finishReason ?? 'unknown';
+    console.error('Empty Gemini response. finishReason:', reason, JSON.stringify(data).slice(0, 400));
     throw new Error(`Empty response from Gemini (finishReason: ${reason})`);
   }
 
@@ -230,13 +242,20 @@ app.post('/api/ai-chat', requireAuth, chatLimiter, async (req: any, res: any): P
 `You are an expert ZIMSEC tutor helping a Zimbabwean secondary school student.
 Current topic: ${topicTitle ?? 'General study'}
 Subject: ${subjectName ?? 'Unknown'}
+
+ZIMSEC PAPER STRUCTURE (critical — do not get this wrong):
+- Paper 1: Multiple choice questions (MCQ) — 1 mark each
+- Paper 2 Section A: Compulsory essay-type questions — students must answer ALL
+- Paper 2 Section B: Case study / data response questions — students choose from options
+- Paper 3: Practical / project work (where applicable)
+
 Rules:
-- Keep answers concise and focused (3-6 sentences unless asked to elaborate)
-- Use Zimbabwe-specific examples where relevant (Zambezi, Hwange, sadza, EcoCash, Great Zimbabwe)
+- Keep answers focused but COMPLETE — never cut off mid-explanation
+- Use Zimbabwe-specific examples (Hwange Colliery, Delta Beverages, EcoCash, Econet, Great Zimbabwe, Zambezi, sadza)
 - Use numbered steps for processes, bullet points for lists
-- Always relate back to what ZIMSEC examiners expect in Paper 1 or Paper 2
-- Give the textbook definition first, then explain it in simple terms
-- Never mention that you are an AI model or reference your training`;
+- Always relate back to what ZIMSEC examiners expect
+- Give the textbook definition first, then explain it simply
+- Never reference being an AI or your training data`;
 
     // Convert chat history to the format callGemini expects
     const historyForGemini = (history ?? []).map((h: { role: string; content: string }) => ({
@@ -244,7 +263,7 @@ Rules:
       text: h.content,
     }));
 
-    const reply = await callGemini(systemInstruction, message, historyForGemini);
+    const reply = await callGemini(systemInstruction, message, historyForGemini, true);
     res.json({ reply });
   } catch (err: any) {
     console.error('AI chat error:', err.message);
