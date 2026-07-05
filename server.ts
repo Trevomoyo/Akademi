@@ -283,9 +283,12 @@ FORMATTING RULES (critical):
 - Examples: $x^2 + y^2 = r^2$, $E = mc^2$, $$\frac{-b \pm \sqrt{b^2-4ac}}{2a}$$
 - For chemistry: use LaTeX for formulas — $H_2O$, $CO_2$, $H_2SO_4$, $\rightarrow$, $\rightleftharpoons$
 - For physics: $F = ma$, $v = u + at$, $E_k = \frac{1}{2}mv^2$
-- For CS binary/hex: use inline code blocks \`1010 0011\`, \`0xFF\`, \`SELECT * FROM table\`
-- For circuit symbols or logic gates: describe them in words since they cannot be drawn
-- Use **bold** for key terms, *italic* for emphasis, numbered lists for steps, bullet points for features`;
+- For CS binary/hex: use fenced code blocks with language tag e.g. \`\`\`binary or \`\`\`vb.net or \`\`\`sql or \`\`\`python
+- For ALL multi-line code: ALWAYS use triple backtick fenced blocks with the language name — NEVER paste code as plain text
+- For tables: ALWAYS use proper markdown tables with | headers | and |---|---| separator rows — NEVER use ASCII art or pipe diagrams to draw UI mockups
+- NEVER draw ASCII diagrams or UI mockups using pipes and dashes — describe them in words instead
+- Use **bold** for key terms, *italic* for emphasis, ### for section headings within a response
+- Use numbered lists for steps, bullet points for features or lists of items`;
 
 
 
