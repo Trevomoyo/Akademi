@@ -258,131 +258,204 @@ function renderMarkdownWithKaTeX(markdown: string, themeColor: string) {
 
 // ── Lightweight markdown renderer for chat messages ───────────────────────
 function renderChatMarkdown(text: string): React.ReactNode {
-  const lines = text.split('\n');
-  const nodes: React.ReactNode[] = [];
-  let i = 0;
+  // ── Step 1: extract fenced code blocks FIRST before any other processing ──
+  // This prevents ``` from being processed as inline markdown
+  const CODE_FENCE = /^```(\w*)\n?([\s\S]*?)```/gm;
+  const parts: { type: 'text' | 'code'; content: string; lang?: string }[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
 
-  const renderInlineStyles = (line: string): React.ReactNode => {
-    // Split on display math $$...$$ first, then inline $...$, then bold/italic/code
-    const segments: { text: string; type: 'text' | 'math-display' | 'math-inline' }[] = [];
-
-    let remaining = line;
-
-    // Extract $$...$$ display math
-    const displayRe = /\$\$([\s\S]*?)\$\$/g;
-    let last = 0;
-    let dm: RegExpExecArray | null;
-    displayRe.lastIndex = 0;
-    const displayParts: { index: number; end: number; content: string }[] = [];
-    while ((dm = displayRe.exec(remaining)) !== null) {
-      displayParts.push({ index: dm.index, end: dm.index + dm[0].length, content: dm[1] });
+  CODE_FENCE.lastIndex = 0;
+  while ((match = CODE_FENCE.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({ type: 'text', content: text.slice(lastIndex, match.index) });
     }
+    parts.push({ type: 'code', lang: match[1] || 'code', content: match[2].trimEnd() });
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    parts.push({ type: 'text', content: text.slice(lastIndex) });
+  }
 
-    if (displayParts.length > 0) {
-      const nodes: React.ReactNode[] = [];
-      let pos = 0;
-      for (const dp of displayParts) {
-        if (dp.index > pos) nodes.push(...flatInline(remaining.slice(pos, dp.index)));
-        try {
-          const html = katex.renderToString(dp.content, { throwOnError: false, displayMode: true });
-          nodes.push(
-            <div key={dp.index} className="overflow-x-auto py-2 text-center" dangerouslySetInnerHTML={{ __html: html }} />
+  // ── Step 2: render each part ──────────────────────────────────────────────
+  return (
+    <div className="flex flex-col gap-1">
+      {parts.map((part, pi) => {
+        if (part.type === 'code') {
+          return (
+            <div key={pi} className="my-2 rounded-xl overflow-hidden border border-[var(--border)]">
+              {part.lang && part.lang !== 'code' && (
+                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider bg-[#1A1714] text-[#A39E98]">
+                  {part.lang}
+                </div>
+              )}
+              <pre className="bg-[#12110E] text-[#E8E3DC] p-4 overflow-x-auto text-xs leading-relaxed font-mono whitespace-pre">
+                {part.content}
+              </pre>
+            </div>
           );
-        } catch {
-          nodes.push(<span key={dp.index} className="text-red-400 text-xs">[math error]</span>);
         }
-        pos = dp.end;
-      }
-      if (pos < remaining.length) nodes.push(...flatInline(remaining.slice(pos)));
-      return <>{nodes}</>;
-    }
 
-    return <>{flatInline(remaining)}</>;
-  };
+        // ── Text part — process line by line ─────────────────────────────
+        const lines = part.content.split('\n');
+        const nodes: React.ReactNode[] = [];
+        let i = 0;
 
-  // Handles inline $math$, **bold**, *italic*, `code`
-  function flatInline(text: string): React.ReactNode[] {
-    const tokens = text.split(/(\$[^$]+?\$|\*\*.*?\*\*|\*[^*]+?\*|`[^`]+?`)/g);
+        while (i < lines.length) {
+          const line = lines[i];
+          const trimmed = line.trim();
+
+          // Empty line
+          if (!trimmed) { nodes.push(<div key={i} className="h-2" />); i++; continue; }
+
+          // Headings ### ## #
+          if (trimmed.startsWith('### ')) {
+            nodes.push(<p key={i} className="font-bold text-base mt-3 mb-1 text-[var(--text-primary)]">{renderInline(trimmed.slice(4))}</p>);
+            i++; continue;
+          }
+          if (trimmed.startsWith('## ')) {
+            nodes.push(<p key={i} className="font-bold text-lg mt-4 mb-1 text-[var(--text-primary)]">{renderInline(trimmed.slice(3))}</p>);
+            i++; continue;
+          }
+          if (trimmed.startsWith('# ')) {
+            nodes.push(<p key={i} className="font-bold text-xl mt-4 mb-1 text-[var(--text-primary)]">{renderInline(trimmed.slice(2))}</p>);
+            i++; continue;
+          }
+
+          // Horizontal rule --- (only if the whole line is dashes)
+          if (/^-{3,}$/.test(trimmed)) {
+            nodes.push(<hr key={i} className="my-3 border-[var(--border)]" />);
+            i++; continue;
+          }
+
+          // Skip ASCII art tables (lines starting with |) — render as plain text instead
+          if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+            // Collect all consecutive pipe lines
+            const tableLines: string[] = [];
+            while (i < lines.length && lines[i].trim().startsWith('|')) {
+              tableLines.push(lines[i].trim());
+              i++;
+            }
+            // Try to render as a proper table if it has a separator row
+            const hasSeparator = tableLines.some(l => /^\|[\s\-|:]+\|$/.test(l));
+            if (hasSeparator && tableLines.length >= 3) {
+              const headerCells = tableLines[0].split('|').slice(1, -1).map(c => c.trim());
+              const bodyRows = tableLines.slice(2).map(r => r.split('|').slice(1, -1).map(c => c.trim()));
+              nodes.push(
+                <div key={`table-${i}`} className="overflow-x-auto my-3 rounded-xl border border-[var(--border)] text-xs">
+                  <table className="w-full">
+                    <thead className="bg-[var(--surface-light)]">
+                      <tr>{headerCells.map((h, hi) => <th key={hi} className="px-3 py-2 text-left font-bold border-b border-[var(--border)]">{renderInline(h)}</th>)}</tr>
+                    </thead>
+                    <tbody>
+                      {bodyRows.map((row, ri) => (
+                        <tr key={ri} className={ri % 2 === 0 ? 'bg-white' : 'bg-[var(--surface-light)]'}>
+                          {row.map((cell, ci) => <td key={ci} className="px-3 py-2 border-b border-[var(--border)]">{renderInline(cell)}</td>)}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            } else {
+              // ASCII art / diagram — render as code block
+              nodes.push(
+                <pre key={`ascii-${i}`} className="bg-[var(--surface-light)] border border-[var(--border)] rounded-xl p-3 text-xs overflow-x-auto font-mono my-2 text-[var(--text-muted)]">
+                  {tableLines.join('\n')}
+                </pre>
+              );
+            }
+            continue;
+          }
+
+          // Numbered list
+          if (/^\d+\.\s/.test(trimmed)) {
+            const items: string[] = [];
+            while (i < lines.length && /^\d+\.\s/.test(lines[i].trim())) {
+              items.push(lines[i].replace(/^\d+\.\s/, ''));
+              i++;
+            }
+            nodes.push(
+              <ol key={`ol-${i}`} className="flex flex-col gap-1.5 my-2">
+                {items.map((item, idx) => (
+                  <li key={idx} className="flex gap-2">
+                    <span className="font-bold shrink-0 text-[var(--text-muted)]">{idx + 1}.</span>
+                    <span>{renderInline(item)}</span>
+                  </li>
+                ))}
+              </ol>
+            );
+            continue;
+          }
+
+          // Bullet list (-, *, •)
+          if (/^[-*•]\s/.test(trimmed)) {
+            const items: string[] = [];
+            while (i < lines.length && /^[-*•]\s/.test(lines[i].trim())) {
+              items.push(lines[i].replace(/^[-*•]\s/, ''));
+              i++;
+            }
+            nodes.push(
+              <ul key={`ul-${i}`} className="flex flex-col gap-1.5 my-2">
+                {items.map((item, idx) => (
+                  <li key={idx} className="flex gap-2 items-start">
+                    <span className="shrink-0 mt-1 w-1.5 h-1.5 rounded-full bg-[var(--text-muted)] inline-block" />
+                    <span>{renderInline(item)}</span>
+                  </li>
+                ))}
+              </ul>
+            );
+            continue;
+          }
+
+          // Normal paragraph
+          nodes.push(
+            <p key={i} className="leading-relaxed text-[var(--text-primary)]">
+              {renderInline(trimmed)}
+            </p>
+          );
+          i++;
+        }
+
+        return <React.Fragment key={pi}>{nodes}</React.Fragment>;
+      })}
+    </div>
+  );
+
+  // ── Inline renderer: $math$, **bold**, *italic*, `code` ──────────────────
+  function renderInline(text: string): React.ReactNode {
+    // Remove lone stray backticks that aren't part of a pair
+    const cleaned = text.replace(/(?<!`)`(?!`)/g, (match, offset, str) => {
+      // Keep backtick only if there's a matching closing one
+      const after = str.slice(offset + 1);
+      return after.includes('`') ? match : '';
+    });
+
+    const tokens = cleaned.split(/(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\*\*[^*]+?\*\*|\*[^*\n]+?\*|`[^`]+?`)/g);
     return tokens.map((token, idx) => {
+      // Display math $$...$$
+      if (token.startsWith('$$') && token.endsWith('$$') && token.length > 4) {
+        try {
+          const html = katex.renderToString(token.slice(2, -2), { throwOnError: false, displayMode: true });
+          return <span key={idx} className="block overflow-x-auto py-1 text-center" dangerouslySetInnerHTML={{ __html: html }} />;
+        } catch { return <span key={idx} className="text-red-400 text-xs">[math error]</span>; }
+      }
+      // Inline math $...$
       if (token.startsWith('$') && token.endsWith('$') && token.length > 2) {
         try {
           const html = katex.renderToString(token.slice(1, -1), { throwOnError: false, displayMode: false });
           return <span key={idx} dangerouslySetInnerHTML={{ __html: html }} />;
-        } catch {
-          return <span key={idx} className="text-red-400 text-xs">[math error]</span>;
-        }
+        } catch { return <span key={idx} className="text-red-400 text-xs">[math error]</span>; }
       }
       if (token.startsWith('**') && token.endsWith('**'))
         return <strong key={idx} className="font-semibold">{token.slice(2, -2)}</strong>;
       if (token.startsWith('*') && token.endsWith('*'))
         return <em key={idx}>{token.slice(1, -1)}</em>;
       if (token.startsWith('`') && token.endsWith('`'))
-        return <code key={idx} className="bg-black/10 px-1 py-0.5 rounded text-[0.85em] font-mono">{token.slice(1, -1)}</code>;
+        return <code key={idx} className="bg-[var(--surface-light)] border border-[var(--border)] px-1.5 py-0.5 rounded text-[0.82em] font-mono">{token.slice(1, -1)}</code>;
       return <span key={idx}>{token}</span>;
     });
   }
-
-  while (i < lines.length) {
-    const line = lines[i];
-    const trimmed = line.trim();
-
-    // Skip empty lines — add spacing
-    if (!trimmed) {
-      nodes.push(<div key={i} className="h-2" />);
-      i++;
-      continue;
-    }
-
-    // Numbered list — collect consecutive items
-    if (/^\d+\.\s/.test(trimmed)) {
-      const items: string[] = [];
-      while (i < lines.length && /^\d+\.\s/.test(lines[i].trim())) {
-        items.push(lines[i].replace(/^\d+\.\s/, ''));
-        i++;
-      }
-      nodes.push(
-        <ol key={`ol-${i}`} className="flex flex-col gap-1 my-1">
-          {items.map((item, idx) => (
-            <li key={idx} className="flex gap-2">
-              <span className="font-bold shrink-0">{idx + 1}.</span>
-              <span>{renderInlineStyles(item)}</span>
-            </li>
-          ))}
-        </ol>
-      );
-      continue;
-    }
-
-    // Bullet list
-    if (/^[-•]\s/.test(trimmed)) {
-      const items: string[] = [];
-      while (i < lines.length && /^[-•]\s/.test(lines[i].trim())) {
-        items.push(lines[i].replace(/^[-•]\s/, ''));
-        i++;
-      }
-      nodes.push(
-        <ul key={`ul-${i}`} className="flex flex-col gap-1 my-1">
-          {items.map((item, idx) => (
-            <li key={idx} className="flex gap-2">
-              <span className="shrink-0 mt-1">•</span>
-              <span>{renderInlineStyles(item)}</span>
-            </li>
-          ))}
-        </ul>
-      );
-      continue;
-    }
-
-    // Regular paragraph
-    nodes.push(
-      <p key={i} className="leading-relaxed">
-        {renderInlineStyles(trimmed)}
-      </p>
-    );
-    i++;
-  }
-
-  return <div className="flex flex-col gap-1">{nodes}</div>;
 }
 
 // ── MCQ option label A B C D ───────────────────────────────────────────────
