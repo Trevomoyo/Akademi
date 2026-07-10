@@ -10,6 +10,44 @@ import 'katex/dist/katex.min.css';
 import { calculateLevel, awardBadge } from '../lib/xp';
 import confetti from 'canvas-confetti';
 
+// ── Repair common truncated LaTeX macros ──────────────────────────────────
+// Two failure modes observed from the Gemini API:
+// 1. A literal form-feed control character (U+000C) appears where "\f" should be,
+//    leaving fragments like "rac{1}{10}" (from \frac), "orall" (from \forall)
+// 2. The backslash is dropped entirely but the macro name kept: "frac{1}{10}"
+function repairLatex(expr: string): string {
+  let out = expr;
+
+  // Fix 1: strip stray form-feed characters (the invisible corruption)
+  // then re-attach "\f" since these are always macros starting with the letter f
+  out = out.replace(/\f/g, '\\f');
+
+  // Fix 2: macro names missing their leading backslash entirely
+  const macros = [
+    'frac', 'sqrt', 'sum', 'int', 'lim', 'infty', 'pm', 'mp', 'cdot', 'times',
+    'div', 'leq', 'geq', 'neq', 'approx', 'equiv', 'rightarrow', 'leftarrow',
+    'rightleftharpoons', 'Rightarrow', 'partial', 'nabla', 'alpha', 'beta',
+    'gamma', 'delta', 'theta', 'lambda', 'mu', 'pi', 'sigma', 'omega',
+    'sin', 'cos', 'tan', 'log', 'ln', 'exp', 'binom', 'overline', 'underline',
+    'vec', 'hat', 'text', 'mathbf', 'mathrm', 'left', 'right', 'begin', 'end',
+    'forall', 'exists', 'in', 'notin', 'subset', 'cup', 'cap', 'emptyset',
+  ];
+  for (const m of macros) {
+    const re = new RegExp(`(^|[^\\\\a-zA-Z])${m}(?=[{^_\\s(]|$)`, 'g');
+    out = out.replace(re, (_match, pre) => `${pre}\\${m}`);
+  }
+
+  // Fix 3: truncated macros missing BOTH backslash and first letter
+  // (form-feed already reattached "\f" above, so this catches remaining cases
+  // like "rac{" with no backslash at all — infer it's \frac)
+  out = out
+    .replace(/(^|[^\\a-zA-Z])rac(?=\{)/g, '$1\\frac')
+    .replace(/(^|[^\\a-zA-Z])qrt(?=\{)/g, '$1\\sqrt')
+    .replace(/(^|[^\\a-zA-Z])orall(?=[\s{(]|$)/g, '$1\\forall');
+
+  return out;
+}
+
 // ── Markdown + KaTeX renderer ──────────────────────────────────────────────
 
 function renderMarkdownWithKaTeX(markdown: string, themeColor: string, onImageClick: (url: string) => void) {
@@ -83,7 +121,7 @@ function renderMarkdownWithKaTeX(markdown: string, themeColor: string, onImageCl
   return finalSegments.map((seg, index) => {
     if (seg.math) {
       try {
-        const html = katex.renderToString(seg.text, { throwOnError: false, displayMode: seg.display });
+        const html = katex.renderToString(repairLatex(seg.text), { throwOnError: false, displayMode: seg.display });
         if (seg.display) {
           return (
             <div
@@ -118,12 +156,12 @@ function renderMarkdownWithKaTeX(markdown: string, themeColor: string, onImageCl
         continue;
       }
 
-      // H2
-      if (line.startsWith('## ')) {
+      // H4 (check before H3/H2/H1 since #### also starts with ###, ##, #)
+      if (line.startsWith('#### ')) {
         nodes.push(
-          <h2 key={i} className="font-display font-bold text-2xl mt-10 mb-4 pb-2" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}30` }}>
-            {line.slice(3)}
-          </h2>
+          <h4 key={i} className="font-bold text-base mt-5 mb-2 text-[var(--text-primary)]">
+            {line.slice(5)}
+          </h4>
         );
       }
       // H3
@@ -135,12 +173,20 @@ function renderMarkdownWithKaTeX(markdown: string, themeColor: string, onImageCl
           </h3>
         );
       }
-      // H4
-      else if (line.startsWith('#### ')) {
+      // H2
+      else if (line.startsWith('## ')) {
         nodes.push(
-          <h4 key={i} className="font-bold text-base mt-5 mb-2 text-[var(--text-primary)]">
-            {line.slice(5)}
-          </h4>
+          <h2 key={i} className="font-display font-bold text-2xl mt-10 mb-4 pb-2" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}30` }}>
+            {line.slice(3)}
+          </h2>
+        );
+      }
+      // H1
+      else if (line.startsWith('# ')) {
+        nodes.push(
+          <h1 key={i} className="font-display font-extrabold text-3xl mt-10 mb-5" style={{ color: themeColor }}>
+            {line.slice(2)}
+          </h1>
         );
       }
       // Key point callout
@@ -458,14 +504,14 @@ function renderChatMarkdown(text: string): React.ReactNode {
       // Display math $$...$$
       if (token.startsWith('$$') && token.endsWith('$$') && token.length > 4) {
         try {
-          const html = katex.renderToString(token.slice(2, -2), { throwOnError: false, displayMode: true });
+          const html = katex.renderToString(repairLatex(token.slice(2, -2)), { throwOnError: false, displayMode: true });
           return <span key={idx} className="block overflow-x-auto py-1 text-center" dangerouslySetInnerHTML={{ __html: html }} />;
         } catch { return <span key={idx} className="text-red-400 text-xs">[math error]</span>; }
       }
       // Inline math $...$
       if (token.startsWith('$') && token.endsWith('$') && token.length > 2) {
         try {
-          const html = katex.renderToString(token.slice(1, -1), { throwOnError: false, displayMode: false });
+          const html = katex.renderToString(repairLatex(token.slice(1, -1)), { throwOnError: false, displayMode: false });
           return <span key={idx} dangerouslySetInnerHTML={{ __html: html }} />;
         } catch { return <span key={idx} className="text-red-400 text-xs">[math error]</span>; }
       }
