@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SUBJECTS_DB } from '../lib/content';
+import { useMergedSubjects } from '../lib/useSubjects';
 import { AkademiDB } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { ArrowLeft, Send, BookOpen, PenLine, ClipboardList, MessageCircle, X, ChevronRight, Lightbulb, AlertTriangle, CheckCircle, Target, Maximize2, Minimize2 } from 'lucide-react';
@@ -465,12 +466,14 @@ const OPTION_LABELS = ['A', 'B', 'C', 'D', 'E'];
 export default function NotesView({ route, navigate, profile, showToast, onUpdateProfile }: any) {
   if (!profile) { navigate('/onboarding'); return null; }
 
+  const { subjects: mergedSubjects } = useMergedSubjects();
+
   const idMatch = route.match(/\/lesson\/(.+)/);
   const topicId = idMatch ? idMatch[1] : null;
 
   let topic: any = null;
   let subject: any = null;
-  for (const s of SUBJECTS_DB) {
+  for (const s of mergedSubjects) {
     const t = s.topics.find((x: any) => x.id === topicId);
     if (t) { topic = t; subject = s; break; }
   }
