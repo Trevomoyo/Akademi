@@ -65,8 +65,8 @@ export default function SubjectDetail({ route, navigate, profile, showToast }: a
 
       <div className="px-4 py-6 flex flex-col gap-3 max-w-2xl mx-auto">
         {subject.topics.map((topic, index) => {
-          // Trial paywall logic: block anything after topic index 1 if trial
-          const isLocked = profile.subscriptionStatus === 'trial' && index >= 2;
+          // Trial paywall logic: block anything after topic index 1 if trial — admins always bypass
+          const isLocked = !profile.isAdmin && profile.subscriptionStatus === 'trial' && index >= 2;
           const userProg = progress[topic.id];
           const stars = evaluateTopicStars(userProg);
           
@@ -103,7 +103,7 @@ export default function SubjectDetail({ route, navigate, profile, showToast }: a
         })}
       </div>
       
-      {profile.subscriptionStatus === 'trial' && subject.topics.length > 2 && (
+      {!profile.isAdmin && profile.subscriptionStatus === 'trial' && subject.topics.length > 2 && (
         <div className="max-w-2xl mx-auto mt-4 px-4">
            <button 
              onClick={() => navigate('/subscribe')}
