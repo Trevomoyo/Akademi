@@ -4,6 +4,7 @@ import cors from 'cors';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import rateLimit from 'express-rate-limit';
+import multer from 'multer';
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -380,6 +381,108 @@ app.post('/api/webhooks/paynow', async (req: any, res: any): Promise<void> => {
   }
 
   res.send('OK');
+});
+
+// ────────────────────────────────────────────────────────────
+// ADMIN — Custom topics (notes editor)
+// ────────────────────────────────────────────────────────────
+app.get('/api/custom-topics', async (_req, res): Promise<void> => {
+  const { data, error } = await supabaseAdmin
+    .from('custom_topics')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json(data ?? []);
+});
+
+app.post('/api/admin/topics', requireAuth, requireAdmin, async (req: any, res: any): Promise<void> => {
+  const { subjectId, level, title, summary, contentMarkdown, mcqs, essayPrompt, essayRubric, readXp, isOverride, overrideTopicId } = req.body;
+  if (!subjectId || !title || !contentMarkdown) {
+    res.status(400).json({ error: 'subjectId, title and contentMarkdown are required' });
+    return;
+  }
+  const { data, error } = await supabaseAdmin
+    .from('custom_topics')
+    .insert({
+      subject_id: subjectId, level: level ?? 'o', title, summary: summary ?? '',
+      content_markdown: contentMarkdown, mcqs: mcqs ?? [], essay_prompt: essayPrompt ?? null,
+      essay_rubric: essayRubric ?? [], read_xp: readXp ?? 10,
+      is_override: isOverride ?? false, override_topic_id: overrideTopicId ?? null,
+      created_by: req.user.id,
+    })
+    .select().single();
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ topic: data });
+});
+
+app.put('/api/admin/topics/:id', requireAuth, requireAdmin, async (req: any, res: any): Promise<void> => {
+  const { id } = req.params;
+  const { title, summary, contentMarkdown, mcqs, essayPrompt, essayRubric, readXp } = req.body;
+  const { data, error } = await supabaseAdmin
+    .from('custom_topics')
+    .update({
+      title, summary, content_markdown: contentMarkdown,
+      mcqs: mcqs ?? [], essay_prompt: essayPrompt ?? null,
+      essay_rubric: essayRubric ?? [], read_xp: readXp ?? 10,
+    })
+    .eq('id', id).select().single();
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ topic: data });
+});
+
+app.delete('/api/admin/topics/:id', requireAuth, requireAdmin, async (req: any, res: any): Promise<void> => {
+  const { error } = await supabaseAdmin.from('custom_topics').delete().eq('id', req.params.id);
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ success: true });
+});
+
+// ── File upload config ──────────────────────────────────────
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB max
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/svg+xml', 'image/gif'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Only image files are allowed (PNG, JPG, WEBP, SVG, GIF)'));
+  },
+});
+
+// ────────────────────────────────────────────────────────────
+// ADMIN — Upload diagram image to Supabase Storage
+// ────────────────────────────────────────────────────────────
+app.post('/api/admin/upload-image', requireAuth, requireAdmin, upload.single('image'), async (req: any, res: any): Promise<void> => {
+  if (!req.file) {
+    res.status(400).json({ error: 'No image file provided' });
+    return;
+  }
+
+  try {
+    const ext = req.file.originalname.split('.').pop() || 'png';
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const filePath = `notes/${fileName}`;
+
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('diagrams')
+      .upload(filePath, req.file.buffer, {
+        contentType: req.file.mimetype,
+        cacheControl: '31536000', // 1 year — images are immutable once uploaded
+      });
+
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError.message);
+      res.status(500).json({ error: 'Upload failed: ' + uploadError.message });
+      return;
+    }
+
+    const { data: publicUrlData } = supabaseAdmin.storage
+      .from('diagrams')
+      .getPublicUrl(filePath);
+
+    res.json({ url: publicUrlData.publicUrl });
+  } catch (err: any) {
+    console.error('Image upload error:', err.message);
+    res.status(500).json({ error: 'Upload failed. Please try again.' });
+  }
 });
 
 // ────────────────────────────────────────────────────────────
