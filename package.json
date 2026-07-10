@@ -7,8 +7,8 @@
     "dev":        "concurrently -n server,vite -c cyan,green \"tsx --env-file=.env server.ts\" \"vite\"",
     "dev:server": "tsx --env-file=.env server.ts",
     "dev:vite":   "vite",
-    "build":      "vite build && esbuild server.ts --bundle --platform=node --format=esm --outfile=server.mjs --external:dotenv",
-    "start":      "node server.mjs",
+    "build":      "vite build && esbuild server.ts --bundle --platform=node --format=cjs --outfile=server.cjs",
+    "start":      "node server.cjs",
     "preview":    "vite preview",
     "clean":      "rm -rf dist server.js",
     "lint":       "tsc --noEmit"
