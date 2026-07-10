@@ -12,7 +12,7 @@ import confetti from 'canvas-confetti';
 
 // ── Markdown + KaTeX renderer ──────────────────────────────────────────────
 
-function renderMarkdownWithKaTeX(markdown: string, themeColor: string) {
+function renderMarkdownWithKaTeX(markdown: string, themeColor: string, onImageClick: (url: string) => void) {
   const segments: { text: string; math: boolean; display: boolean }[] = [];
   let remaining = markdown;
   const displayRe = /\$\$([\s\S]*?)\$\$/g;
@@ -162,6 +162,27 @@ function renderMarkdownWithKaTeX(markdown: string, themeColor: string) {
             {renderInline(line.slice(2))}
           </blockquote>
         );
+      }
+      // Image: ![alt](url)
+      else if (/^!\[.*?\]\(.+?\)$/.test(line.trim())) {
+        const imgMatch = line.trim().match(/^!\[(.*?)\]\((.+?)\)$/);
+        if (imgMatch) {
+          const [, alt, url] = imgMatch;
+          nodes.push(
+            <div key={i} className="my-6">
+              <button
+                onClick={() => onImageClick(url)}
+                className="w-full rounded-2xl overflow-hidden border block hover:opacity-90 transition-opacity"
+                style={{ borderColor: themeColor + '30' }}
+              >
+                <img src={url} alt={alt || 'diagram'} className="w-full h-auto block" loading="lazy" />
+              </button>
+              {alt && (
+                <p className="text-xs text-center text-[var(--text-muted)] mt-2 italic">{alt}</p>
+              )}
+            </div>
+          );
+        }
       }
       // Worked Example / Solution / Definition headers
       else if (/^\*\*Worked Example.*\*\*$/.test(line.trim()) || /^\*\*Example \d+.*\*\*$/.test(line.trim())) {
@@ -488,6 +509,7 @@ export default function NotesView({ route, navigate, profile, showToast, onUpdat
   const [gradeResult, setGradeResult] = useState<any>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatFullscreen, setChatFullscreen] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [chatMessage, setChatMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<{ role: string; content: string }[]>([]);
   const [isChatting, setIsChatting] = useState(false);
@@ -709,7 +731,7 @@ export default function NotesView({ route, navigate, profile, showToast, onUpdat
 
             {/* Main content */}
             <div className="prose-content">
-              {renderMarkdownWithKaTeX(topic.contentMarkdown, tc)}
+              {renderMarkdownWithKaTeX(topic.contentMarkdown, tc, setLightboxImage)}
             </div>
 
             {topic.hasThreeDModel && (
@@ -955,6 +977,27 @@ export default function NotesView({ route, navigate, profile, showToast, onUpdat
           </div>
         )}
       </div>
+
+      {/* ── IMAGE LIGHTBOX ────────────────────────────── */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 bg-black/90 z-[90] flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setLightboxImage(null)}
+        >
+          <button
+            onClick={() => setLightboxImage(null)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+          >
+            <X size={20} />
+          </button>
+          <img
+            src={lightboxImage}
+            alt="diagram fullscreen"
+            className="max-w-full max-h-full object-contain rounded-lg"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       {/* ── FLOATING TUTOR ────────────────────────────── */}
 
