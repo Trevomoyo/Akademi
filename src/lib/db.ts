@@ -182,11 +182,15 @@ export async function getPastPapers(): Promise<PastPaper[]> {
 }
 
 export async function addPastPaper(paper: Omit<PastPaper, 'id'>): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+
   const res = await fetch('/api/admin/papers', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session?.access_token ?? ''}`,
+    },
     body: JSON.stringify(paper),
-    credentials: 'include',
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
