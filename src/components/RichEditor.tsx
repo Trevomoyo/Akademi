@@ -13,6 +13,7 @@ import ListItem from '@tiptap/extension-list-item';
 import CodeBlock from '@tiptap/extension-code-block';
 import HardBreak from '@tiptap/extension-hard-break';
 import HorizontalRule from '@tiptap/extension-horizontal-rule';
+import Blockquote from '@tiptap/extension-blockquote';
 import Table from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
 import TableCell from '@tiptap/extension-table-cell';
@@ -72,6 +73,16 @@ td.addRule('images', {
   },
 });
 
+// Blockquote → "> " prefix (used for Key Point callouts)
+td.addRule('blockquote', {
+  filter: 'blockquote',
+  replacement(content: string) {
+    const text = content.replace(/\n+$/, '').trim();
+    // Force single-line "> " format (Key Point callouts are always one line)
+    return `\n\n> ${text}\n\n`;
+  },
+});
+
 // ── Toolbar button ────────────────────────────────────────────
 function ToolbarBtn({
   onClick, active, disabled, title, children,
@@ -117,6 +128,7 @@ export default function RichEditor({ value, onChange, placeholder = 'Start writi
       .replace(/^### (.+)$/gm, '<h3>$1</h3>')
       .replace(/^## (.+)$/gm, '<h2>$1</h2>')
       .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+      .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
       .replace(/!\[(.*?)\]\((.+?)\)/g, '<img src="$2" alt="$1" />')
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
@@ -137,7 +149,7 @@ export default function RichEditor({ value, onChange, placeholder = 'Start writi
       Heading.configure({ levels: [1, 2, 3] }),
       BulletList, OrderedList, ListItem,
       CodeBlock.configure({ languageClassPrefix: 'language-' }),
-      HorizontalRule,
+      HorizontalRule, Blockquote,
       Table.configure({ resizable: false }),
       TableRow, TableHeader, TableCell,
       Image.configure({ HTMLAttributes: { class: 'rounded-xl max-w-full' } }),
@@ -162,6 +174,22 @@ export default function RichEditor({ value, onChange, placeholder = 'Start writi
   const insertTable = useCallback(() => {
     editor?.chain().focus()
       .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+      .run();
+  }, [editor]);
+
+  const insertKeyPoint = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus()
+      .insertContent({
+        type: 'blockquote',
+        content: [{
+          type: 'paragraph',
+          content: [
+            { type: 'text', marks: [{ type: 'bold' }], text: 'Key point: ' },
+            { type: 'text', text: 'Type your key point here...' },
+          ],
+        }],
+      })
       .run();
   }, [editor]);
 
@@ -233,6 +261,7 @@ export default function RichEditor({ value, onChange, placeholder = 'Start writi
       { label: '⊞ Table', title: 'Insert 3×3 table', active: editor.isActive('table'), action: insertTable },
       { label: '∑ Math', title: 'Insert math expression', active: false, action: insertMath },
       { label: '🖼 Image', title: 'Insert diagram / image', active: false, action: () => setImageModalOpen(true) },
+      { label: '💡 Key Point', title: 'Insert Key Point callout box', active: editor.isActive('blockquote'), action: insertKeyPoint },
     ],
   ];
 
