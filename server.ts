@@ -284,6 +284,7 @@ FORMATTING RULES (critical):
 - Examples: $x^2 + y^2 = r^2$, $E = mc^2$, $$\frac{-b \pm \sqrt{b^2-4ac}}{2a}$$
 - For chemistry: use LaTeX for formulas — $H_2O$, $CO_2$, $H_2SO_4$, $\rightarrow$, $\rightleftharpoons$
 - For physics: $F = ma$, $v = u + at$, $E_k = \frac{1}{2}mv^2$
+- CRITICAL: every LaTeX command must include its leading backslash exactly as written — \frac, \sqrt, \int, \sum, \cdot, \infty, \rightarrow, \alpha, \pi etc. Never drop the backslash or the first letter of a command.
 - For CS binary/hex: use fenced code blocks with language tag e.g. \`\`\`binary or \`\`\`vb.net or \`\`\`sql or \`\`\`python
 - For ALL multi-line code: ALWAYS use triple backtick fenced blocks with the language name — NEVER paste code as plain text
 - For tables: ALWAYS use proper markdown tables with | headers | and |---|---| separator rows — NEVER use ASCII art or pipe diagrams to draw UI mockups
