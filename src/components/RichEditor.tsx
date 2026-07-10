@@ -17,7 +17,9 @@ import Table from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
 import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
+import Image from '@tiptap/extension-image';
 import TurndownService from 'turndown';
+import { supabase } from '../lib/supabase';
 
 // ── Turndown instance (HTML → Markdown) ──────────────────────
 const td = new TurndownService({
@@ -60,6 +62,16 @@ td.addRule('codeBlocks', {
   },
 });
 
+// Preserve images as markdown ![alt](url)
+td.addRule('images', {
+  filter: 'img',
+  replacement(_content, node: any) {
+    const alt = node.getAttribute('alt') || 'diagram';
+    const src = node.getAttribute('src') || '';
+    return `\n\n![${alt}](${src})\n\n`;
+  },
+});
+
 // ── Toolbar button ────────────────────────────────────────────
 function ToolbarBtn({
   onClick, active, disabled, title, children,
@@ -93,6 +105,11 @@ interface RichEditorProps {
 
 // ── Component ─────────────────────────────────────────────────
 export default function RichEditor({ value, onChange, placeholder = 'Start writing...', minHeight = 320 }: RichEditorProps) {
+  const [imageModalOpen, setImageModalOpen] = React.useState(false);
+  const [imageUrl, setImageUrl] = React.useState('');
+  const [imageUploading, setImageUploading] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   // Convert incoming markdown to basic HTML for TipTap
   // (TipTap works in HTML internally; we convert back to markdown on change)
   const mdToHtml = (md: string): string => {
@@ -100,6 +117,7 @@ export default function RichEditor({ value, onChange, placeholder = 'Start writi
       .replace(/^### (.+)$/gm, '<h3>$1</h3>')
       .replace(/^## (.+)$/gm, '<h2>$1</h2>')
       .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+      .replace(/!\[(.*?)\]\((.+?)\)/g, '<img src="$2" alt="$1" />')
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
       .replace(/`{3}(\w*)\n([\s\S]*?)`{3}/gm, '<pre><code class="language-$1">$2</code></pre>')
@@ -122,6 +140,7 @@ export default function RichEditor({ value, onChange, placeholder = 'Start writi
       HorizontalRule,
       Table.configure({ resizable: false }),
       TableRow, TableHeader, TableCell,
+      Image.configure({ HTMLAttributes: { class: 'rounded-xl max-w-full' } }),
     ],
     content: mdToHtml(value),
     onUpdate({ editor }) {
@@ -153,6 +172,40 @@ export default function RichEditor({ value, onChange, placeholder = 'Start writi
     }
   }, [editor]);
 
+  const insertImageFromUrl = useCallback(() => {
+    if (imageUrl.trim() && editor) {
+      editor.chain().focus().setImage({ src: imageUrl.trim(), alt: 'diagram' }).run();
+      setImageUrl('');
+      setImageModalOpen(false);
+    }
+  }, [editor, imageUrl]);
+
+  const handleFileUpload = useCallback(async (file: File) => {
+    if (!editor) return;
+    setImageUploading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const res = await fetch('/api/admin/upload-image', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session?.access_token ?? ''}` },
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error ?? 'Upload failed');
+
+      editor.chain().focus().setImage({ src: data.url, alt: 'diagram' }).run();
+      setImageModalOpen(false);
+    } catch (e: any) {
+      alert(e.message ?? 'Upload failed. Please try again.');
+    } finally {
+      setImageUploading(false);
+    }
+  }, [editor]);
+
   if (!editor) return null;
 
   const toolbarGroups = [
@@ -179,6 +232,7 @@ export default function RichEditor({ value, onChange, placeholder = 'Start writi
       { label: '—', title: 'Horizontal rule', active: false, action: () => editor.chain().focus().setHorizontalRule().run() },
       { label: '⊞ Table', title: 'Insert 3×3 table', active: editor.isActive('table'), action: insertTable },
       { label: '∑ Math', title: 'Insert math expression', active: false, action: insertMath },
+      { label: '🖼 Image', title: 'Insert diagram / image', active: false, action: () => setImageModalOpen(true) },
     ],
   ];
 
@@ -236,6 +290,73 @@ export default function RichEditor({ value, onChange, placeholder = 'Start writi
               {btn.label}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Image insert modal */}
+      {imageModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setImageModalOpen(false)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-lg mb-4">Insert Diagram</h3>
+
+            {/* Upload */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={imageUploading}
+              className="w-full border-2 border-dashed border-[var(--border)] rounded-xl py-6 flex flex-col items-center gap-2 hover:border-[var(--primary)] transition-colors mb-4 disabled:opacity-50"
+            >
+              <span className="text-2xl">📤</span>
+              <span className="text-sm font-semibold text-[var(--text-muted)]">
+                {imageUploading ? 'Uploading…' : 'Click to upload an image'}
+              </span>
+              <span className="text-xs text-[var(--text-muted)]">PNG, JPG, WEBP, SVG — max 8MB</span>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml,image/gif"
+              className="hidden"
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (file) handleFileUpload(file);
+              }}
+            />
+
+            <div className="flex items-center gap-2 my-4">
+              <div className="h-px flex-1 bg-[var(--border)]" />
+              <span className="text-xs text-[var(--text-muted)] font-semibold">OR PASTE URL</span>
+              <div className="h-px flex-1 bg-[var(--border)]" />
+            </div>
+
+            {/* Paste URL */}
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={imageUrl}
+                onChange={e => setImageUrl(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && insertImageFromUrl()}
+                placeholder="https://..."
+                className="flex-1 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
+              />
+              <button
+                type="button"
+                onClick={insertImageFromUrl}
+                disabled={!imageUrl.trim()}
+                className="px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-40"
+              >
+                Insert
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setImageModalOpen(false)}
+              className="w-full mt-4 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
     </div>
