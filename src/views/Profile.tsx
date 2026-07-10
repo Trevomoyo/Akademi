@@ -144,16 +144,23 @@ export default function Profile({ navigate, profile, onUpdateProfile, showToast 
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-[var(--border)] flex items-center justify-between">
           <div>
             <div className="text-[var(--text-muted)] text-xs font-bold uppercase tracking-wider mb-1">Subscription</div>
-            <div className={`font-bold text-lg capitalize ${profile.subscriptionStatus === 'active' ? 'text-[var(--primary)]' : 'text-[var(--accent-warm)]'}`}>
-              {profile.subscriptionStatus}
-              {profile.subscriptionStatus === 'active' && profile.subscriptionExpiresAt && (
-                <span className="text-xs font-normal text-[var(--text-muted)] ml-2">
-                  · expires {new Date(profile.subscriptionExpiresAt).toLocaleDateString()}
-                </span>
-              )}
-            </div>
+            {profile.isAdmin ? (
+              <div className="font-bold text-lg text-[var(--primary)] flex items-center gap-2">
+                Unlimited Access
+                <span className="text-xs font-bold bg-[var(--primary-light)] text-[var(--primary)] px-2 py-0.5 rounded-full">ADMIN</span>
+              </div>
+            ) : (
+              <div className={`font-bold text-lg capitalize ${profile.subscriptionStatus === 'active' ? 'text-[var(--primary)]' : 'text-[var(--accent-warm)]'}`}>
+                {profile.subscriptionStatus}
+                {profile.subscriptionStatus === 'active' && profile.subscriptionExpiresAt && (
+                  <span className="text-xs font-normal text-[var(--text-muted)] ml-2">
+                    · expires {new Date(profile.subscriptionExpiresAt).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
-          {profile.subscriptionStatus !== 'active' && (
+          {!profile.isAdmin && profile.subscriptionStatus !== 'active' && (
             <button onClick={() => navigate('/subscribe')} className="bg-[var(--accent-warm)] text-white px-4 py-2 rounded-full text-sm font-bold">
               Upgrade
             </button>
