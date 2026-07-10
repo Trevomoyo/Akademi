@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { SUBJECTS_DB } from '../lib/content';
+import { useMergedSubjects } from '../lib/useSubjects';
 import { AkademiDB } from '../lib/db';
 import { evaluateTopicStars } from '../lib/xp';
-import { ArrowLeft, Lock } from 'lucide-react';
+import { ArrowLeft, Lock, ChevronRight } from 'lucide-react';
 
 export default function SubjectDetail({ route, navigate, profile, showToast }: any) {
+  const { subjects } = useMergedSubjects();
   const [progress, setProgress] = useState<any>({});
-  
+
   const idMatch = route.match(/\/subject\/(.+)/);
   const subjectId = idMatch ? idMatch[1] : null;
-  const subject = SUBJECTS_DB.find(s => s.id === subjectId);
+  const subject = subjects.find(s => s.id === subjectId);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -95,7 +96,7 @@ export default function SubjectDetail({ route, navigate, profile, showToast }: a
                   LOCKED
                 </div>
               ) : (
-                <div className="text-[var(--primary)] font-bold text-xl">→</div>
+                <ChevronRight size={18} className="text-[var(--primary)] shrink-0" />
               )}
             </div>
           );
