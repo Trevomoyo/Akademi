@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, TopicProgress } from '../types';
 import { SUBJECTS_DB } from '../lib/content';
+import { useMergedSubjects } from '../lib/useSubjects';
 import { AkademiDB } from '../lib/db';
 import { calculateLevel, BADGES_DB } from '../lib/xp';
 import { BottomNav } from '../components/BottomNav';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Sun, Flame, Zap, Star, ChevronRight } from 'lucide-react';
 
 export default function Dashboard({ route, navigate, profile, onUpdateProfile }: { route: string, navigate: (r: string) => void, profile: UserProfile, onUpdateProfile: (p: UserProfile) => void }) {
   const [greeting, setGreeting] = useState('');
@@ -40,7 +41,8 @@ export default function Dashboard({ route, navigate, profile, onUpdateProfile }:
 
   const level = calculateLevel(profile.xp);
   
-  const mySubjects = SUBJECTS_DB.filter(s => profile.subjects.includes(s.id));
+  const { subjects: allSubjects } = useMergedSubjects();
+  const mySubjects = allSubjects.filter(s => profile.subjects.includes(s.id));
 
   // Find last topic with progress (most recently read)
   const lastTopicId = progressData.filter(p => p.readComplete).slice(-1)[0]?.topicId;
@@ -76,15 +78,24 @@ export default function Dashboard({ route, navigate, profile, onUpdateProfile }:
       {/* STATS STRIP */}
       <div className="flex px-4 gap-2 mb-8 overflow-x-auto hide-scrollbar">
         <div className="flex-1 min-w-[100px] bg-white border border-[var(--border)] rounded-2xl p-4 flex flex-col items-center justify-center shadow-sm">
-          <div className="text-2xl mb-1">🔥 {profile.loginStreak}</div>
-          <div className="text-xs text-[var(--text-muted)] font-medium">days</div>
+          <div className="flex items-center gap-1 mb-1">
+            <Flame size={18} className="text-orange-500" />
+            <span className="text-xl font-bold">{profile.loginStreak}</span>
+          </div>
+          <div className="text-xs text-[var(--text-muted)] font-medium">day streak</div>
         </div>
         <div className="flex-1 min-w-[100px] bg-white border border-[var(--border)] rounded-2xl p-4 flex flex-col items-center justify-center shadow-sm">
-          <div className="text-2xl mb-1 text-[var(--highlight)]">⚡ {profile.xp}</div>
+          <div className="flex items-center gap-1 mb-1">
+            <Zap size={18} className="text-[var(--highlight)]" />
+            <span className="text-xl font-bold text-[var(--highlight)]">{profile.xp.toLocaleString()}</span>
+          </div>
           <div className="text-xs text-[var(--text-muted)] font-medium">XP</div>
         </div>
         <div className="flex-1 min-w-[100px] bg-white border border-[var(--border)] rounded-2xl p-4 flex flex-col items-center justify-center shadow-sm">
-          <div className="text-2xl mb-1 text-[var(--primary)]">★ Lv{level}</div>
+          <div className="flex items-center gap-1 mb-1">
+            <Star size={18} className="text-[var(--primary)]" />
+            <span className="text-xl font-bold text-[var(--primary)]">Lv{level}</span>
+          </div>
           <div className="text-xs text-[var(--text-muted)] font-medium">Scholar</div>
         </div>
       </div>
@@ -104,7 +115,7 @@ export default function Dashboard({ route, navigate, profile, onUpdateProfile }:
                 <div className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-1">{lastSubject.name}</div>
                 <div className="font-bold truncate">{lastTopic.title}</div>
               </div>
-              <div className="text-[var(--primary)] font-bold text-xl shrink-0">→</div>
+              <ChevronRight size={20} className="text-[var(--primary)] shrink-0" />
             </div>
           </div>
         )}
