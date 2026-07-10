@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Loader2, CheckCircle2, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { supabase } from '../lib/supabase';
@@ -21,6 +21,15 @@ export default function Subscribe({ navigate, profile, onUpdateProfile, showToas
   const [pollToken, setPollToken] = useState<string | null>(null);
 
   const price = currency === 'USD' ? '$1/month' : 'ZiG 36/month';
+
+  useEffect(() => {
+    if (profile?.isAdmin) {
+      showToast('Admins have unlimited access — no subscription needed.');
+      navigate('/dashboard');
+    }
+  }, [profile?.isAdmin]);
+
+  if (profile?.isAdmin) return null;
 
   const handlePay = async () => {
     if (!phone.trim()) return;
