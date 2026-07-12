@@ -412,6 +412,8 @@ export default function Admin({ navigate, showToast }: any) {
                     onChange={setNContent}
                     placeholder="Write full lesson notes here. Use the toolbar for headings, lists, tables, code blocks and math..."
                     minHeight={400}
+                    subjectName={selectedSubject?.name}
+                    topicTitle={nTitle}
                   />
                 </div>
 
