@@ -112,12 +112,19 @@ interface RichEditorProps {
   onChange: (md: string) => void;
   placeholder?: string;
   minHeight?: number;
+  subjectName?: string;     // context for AI formatting/generation
+  topicTitle?: string;      // context for AI formatting/generation
 }
 
 // ── Component ─────────────────────────────────────────────────
-export default function RichEditor({ value, onChange, placeholder = 'Start writing...', minHeight = 320 }: RichEditorProps) {
+export default function RichEditor({ value, onChange, placeholder = 'Start writing...', minHeight = 320, subjectName, topicTitle }: RichEditorProps) {
   const [imageModalOpen, setImageModalOpen] = React.useState(false);
   const [imageUrl, setImageUrl] = React.useState('');
+  const [aiModalOpen, setAiModalOpen] = React.useState(false);
+  const [aiMode, setAiMode] = React.useState<'format' | 'generate'>('format');
+  const [aiRawText, setAiRawText] = React.useState('');
+  const [aiInstructions, setAiInstructions] = React.useState('');
+  const [aiWorking, setAiWorking] = React.useState(false);
   const [imageUploading, setImageUploading] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -193,6 +200,46 @@ export default function RichEditor({ value, onChange, placeholder = 'Start writi
       .run();
   }, [editor]);
 
+  const handleAiFormat = useCallback(async () => {
+    if (!editor) return;
+    if (aiMode === 'format' && !aiRawText.trim()) return;
+    if (aiMode === 'generate' && !topicTitle?.trim()) return;
+
+    setAiWorking(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/admin/format-notes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({
+          mode: aiMode,
+          rawText: aiRawText,
+          subjectName,
+          topicTitle,
+          instructions: aiInstructions,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'AI formatting failed');
+
+      // Convert the returned markdown to HTML and load it into the editor
+      const html = mdToHtml(data.markdown);
+      editor.commands.setContent(html);
+      onChange(data.markdown);
+
+      setAiModalOpen(false);
+      setAiRawText('');
+      setAiInstructions('');
+    } catch (e: any) {
+      alert(e.message ?? 'AI formatting failed. Please try again.');
+    } finally {
+      setAiWorking(false);
+    }
+  }, [editor, aiMode, aiRawText, aiInstructions, subjectName, topicTitle, onChange]);
+
   const insertMath = useCallback(() => {
     const expr = prompt('Enter LaTeX expression (will be wrapped in $):');
     if (expr && editor) {
@@ -262,6 +309,7 @@ export default function RichEditor({ value, onChange, placeholder = 'Start writi
       { label: '∑ Math', title: 'Insert math expression', active: false, action: insertMath },
       { label: '🖼 Image', title: 'Insert diagram / image', active: false, action: () => setImageModalOpen(true) },
       { label: '💡 Key Point', title: 'Insert Key Point callout box', active: editor.isActive('blockquote'), action: insertKeyPoint },
+      { label: '✨ AI Format', title: 'Format or generate notes with AI', active: false, action: () => setAiModalOpen(true) },
     ],
   ];
 
@@ -382,6 +430,97 @@ export default function RichEditor({ value, onChange, placeholder = 'Start writi
               type="button"
               onClick={() => setImageModalOpen(false)}
               className="w-full mt-4 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* AI Format / Generate modal */}
+      {aiModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => !aiWorking && setAiModalOpen(false)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-lg mb-1 flex items-center gap-2">✨ AI Notes Assistant</h3>
+            <p className="text-xs text-[var(--text-muted)] mb-4">
+              {topicTitle ? `Topic: ${topicTitle}` : 'Set a topic title first for best results'}
+            </p>
+
+            {/* Mode toggle */}
+            <div className="flex bg-[var(--surface-light)] p-1 rounded-xl border border-[var(--border)] mb-4">
+              <button
+                type="button"
+                onClick={() => setAiMode('format')}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${aiMode === 'format' ? 'bg-white shadow text-[var(--primary)]' : 'text-[var(--text-muted)]'}`}
+              >
+                Format my notes
+              </button>
+              <button
+                type="button"
+                onClick={() => setAiMode('generate')}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${aiMode === 'generate' ? 'bg-white shadow text-[var(--primary)]' : 'text-[var(--text-muted)]'}`}
+              >
+                Write for me
+              </button>
+            </div>
+
+            {aiMode === 'format' ? (
+              <div className="mb-4">
+                <label className="block text-sm font-semibold mb-2">Paste your rough notes</label>
+                <textarea
+                  value={aiRawText}
+                  onChange={e => setAiRawText(e.target.value)}
+                  placeholder="Paste unformatted notes, textbook content, or messy text here. The AI will clean it up, fix math notation, add headings, a Key Point, and an exercise section — without changing the facts."
+                  rows={8}
+                  className="w-full border border-[var(--border)] rounded-xl p-3 text-sm outline-none resize-none focus:border-[var(--primary)]"
+                />
+              </div>
+            ) : (
+              <div className="mb-4 p-3 rounded-xl bg-[var(--surface-light)] border border-[var(--border)] text-sm text-[var(--text-muted)]">
+                The AI will write complete lesson notes from scratch for <strong className="text-[var(--text-primary)]">{topicTitle || '(set a topic title first)'}</strong>, including explanations, a worked example, a Key Point, and an exercise section.
+              </div>
+            )}
+
+            <div className="mb-5">
+              <label className="block text-sm font-semibold mb-2">
+                Extra instructions <span className="text-xs text-[var(--text-muted)] font-normal">(optional)</span>
+              </label>
+              <input
+                value={aiInstructions}
+                onChange={e => setAiInstructions(e.target.value)}
+                placeholder="e.g. Focus on worked examples, keep it concise, emphasise the ZIMSEC exam angle..."
+                className="w-full border border-[var(--border)] rounded-xl p-3 text-sm outline-none focus:border-[var(--primary)]"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200">
+              <span className="text-amber-600 text-sm shrink-0">⚠️</span>
+              <p className="text-xs text-amber-800">
+                This will <strong>replace</strong> the current editor content. Review the AI's output carefully before saving — always fact-check generated notes.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleAiFormat}
+              disabled={aiWorking || (aiMode === 'format' && !aiRawText.trim()) || (aiMode === 'generate' && !topicTitle?.trim())}
+              className="w-full bg-[var(--primary)] text-white py-3.5 rounded-xl font-bold disabled:opacity-40 flex items-center justify-center gap-2"
+            >
+              {aiWorking ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  {aiMode === 'format' ? 'Formatting…' : 'Writing…'}
+                </>
+              ) : (
+                aiMode === 'format' ? 'Format Notes' : 'Generate Notes'
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => !aiWorking && setAiModalOpen(false)}
+              disabled={aiWorking}
+              className="w-full mt-3 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-40"
             >
               Cancel
             </button>
