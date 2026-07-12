@@ -533,7 +533,7 @@ const OPTION_LABELS = ['A', 'B', 'C', 'D', 'E'];
 export default function NotesView({ route, navigate, profile, showToast, onUpdateProfile }: any) {
   if (!profile) { navigate('/onboarding'); return null; }
 
-  const { subjects: mergedSubjects } = useMergedSubjects();
+  const { subjects: mergedSubjects, loading: subjectsLoading } = useMergedSubjects();
 
   const idMatch = route.match(/\/lesson\/(.+)/);
   const topicId = idMatch ? idMatch[1] : null;
@@ -584,6 +584,14 @@ export default function NotesView({ route, navigate, profile, showToast, onUpdat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory, isChatting]);
+
+  if (subjectsLoading && (!topic || !subject)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!topic || !subject) {
     return (
