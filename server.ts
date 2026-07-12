@@ -449,6 +449,79 @@ const upload = multer({
 });
 
 // ────────────────────────────────────────────────────────────
+// ADMIN — AI-assisted note formatting / generation
+// ────────────────────────────────────────────────────────────
+app.post('/api/admin/format-notes', requireAuth, requireAdmin, essayLimiter, async (req: any, res: any): Promise<void> => {
+  const { rawText, mode, subjectName, topicTitle, instructions } = req.body;
+  // mode: 'format' (clean up existing text) or 'generate' (write from scratch)
+
+  if (mode === 'format' && !rawText?.trim()) {
+    res.status(400).json({ error: 'rawText is required for format mode' });
+    return;
+  }
+  if (mode === 'generate' && !topicTitle?.trim()) {
+    res.status(400).json({ error: 'topicTitle is required for generate mode' });
+    return;
+  }
+  if (!GEMINI_API_KEY) {
+    res.status(503).json({ error: 'AI formatting is not configured on this server.' });
+    return;
+  }
+
+  try {
+    const systemInstruction =
+`You are a ZIMSEC curriculum content formatter. You convert lesson notes into clean, well-structured markdown that matches this EXACT formatting system:
+
+HEADINGS:
+- Use ## for major sections (e.g. "## Key Concepts")
+- Use ### for subsections
+- Never use # (single hash) — reserved for the topic title itself, not used in body content
+
+MATH & SCIENCE NOTATION:
+- Inline math: $x^2 + y^2$  |  Display/block equations: $$\\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}$$
+- Always include the full backslash for every LaTeX command: \\frac, \\sqrt, \\int, \\sum, \\cdot, \\infty, \\alpha, \\rightarrow etc. Never drop a backslash or letter.
+- Chemistry formulas in LaTeX: $H_2O$, $CO_2$, $\\rightarrow$, $\\rightleftharpoons$
+
+KEY POINT CALLOUTS:
+- Highlight the single most important takeaway of a section using EXACTLY this format on one line:
+  > **Key point:** <the key point text>
+- Use sparingly — one per major section at most
+
+TABLES:
+- Use proper markdown tables with | headers | and |---|---| separator rows for any comparison, classification, or structured data
+
+LISTS:
+- Numbered lists (1. 2. 3.) for sequential steps, exercises, or ranked items
+- Bullet lists (- item) for unordered feature lists
+
+CODE (for Computer Science topics only):
+- Use fenced code blocks with language tag: \`\`\`python \`\`\`sql \`\`\`vb.net etc.
+
+EXERCISES:
+- End major topics with a "### Exercise" section containing 2-4 numbered practice questions in ZIMSEC style (command words: State, Explain, Calculate, Describe, Show that, Define)
+
+ZIMBABWE CONTEXT:
+- Use Zimbabwean examples where natural (Hwange Colliery, Delta Beverages, EcoCash, Great Zimbabwe, Zambezi River, local school names) — but do not force them if irrelevant to the topic
+
+Subject: ${subjectName ?? 'Unknown'}
+Topic: ${topicTitle ?? 'Unknown'}
+${instructions ? `Additional instructions from the admin: ${instructions}` : ''}
+
+Respond with ONLY the formatted markdown content. No preamble, no explanation, no "Here is your formatted content" — just the clean markdown ready to paste directly into the lesson.`;
+
+    const userMessage = mode === 'generate'
+      ? `Write complete, well-structured ZIMSEC-aligned lesson notes for the topic "${topicTitle}" in ${subjectName ?? 'this subject'}. Include an introduction, 2-4 key sections with explanations and worked examples where relevant, at least one Key Point callout, and end with an Exercise section.`
+      : `Format and clean up the following rough notes into the required markdown structure. Preserve all factual content — do not remove information, only reformat, fix math notation, and improve structure/clarity:\n\n${rawText}`;
+
+    const formatted = await callGemini(systemInstruction, userMessage, [], false);
+    res.json({ markdown: formatted.trim() });
+  } catch (err: any) {
+    console.error('Format notes error:', err.message);
+    res.status(500).json({ error: 'AI formatting failed. Please try again.' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────
 // ADMIN — Upload diagram image to Supabase Storage
 // ────────────────────────────────────────────────────────────
 app.post('/api/admin/upload-image', requireAuth, requireAdmin, upload.single('image'), async (req: any, res: any): Promise<void> => {
