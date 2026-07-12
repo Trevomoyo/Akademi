@@ -131,7 +131,16 @@ export default function RichEditor({ value, onChange, placeholder = 'Start writi
   // Convert incoming markdown to basic HTML for TipTap
   // (TipTap works in HTML internally; we convert back to markdown on change)
   const mdToHtml = (md: string): string => {
-    return md
+    // Protect $$...$$ and $...$ math blocks from being mangled by other regex passes
+    // (asterisks/underscores inside LaTeX like x^2, a_1, \sqrt{...} would otherwise
+    // get misinterpreted as markdown emphasis or stripped entirely)
+    const mathBlocks: string[] = [];
+    let protectedMd = md.replace(/\$\$[\s\S]+?\$\$|\$[^$\n]+?\$/g, (match) => {
+      mathBlocks.push(match);
+      return `\u0000MATH${mathBlocks.length - 1}\u0000`;
+    });
+
+    let html = protectedMd
       .replace(/^### (.+)$/gm, '<h3>$1</h3>')
       .replace(/^## (.+)$/gm, '<h2>$1</h2>')
       .replace(/^# (.+)$/gm, '<h1>$1</h1>')
@@ -147,6 +156,11 @@ export default function RichEditor({ value, onChange, placeholder = 'Start writi
       .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
       .replace(/\n\n+/g, '</p><p>')
       .replace(/^(?!<[h|u|o|l|p|c|h])(.+)$/gm, '<p>$1</p>');
+
+    // Restore protected math blocks exactly as they were
+    html = html.replace(/\u0000MATH(\d+)\u0000/g, (_match, idx) => mathBlocks[parseInt(idx)]);
+
+    return html;
   };
 
   const editor = useEditor({
@@ -164,10 +178,30 @@ export default function RichEditor({ value, onChange, placeholder = 'Start writi
     content: mdToHtml(value),
     onUpdate({ editor }) {
       const html = editor.getHTML();
-      // Create a temporary DOM element to run turndown on
       const div = document.createElement('div');
       div.innerHTML = html;
-      const markdown = td.turndown(div);
+
+      // Protect $...$ / $$...$$ math text from Turndown's markdown-escaping
+      // (Turndown escapes _ and * inside plain text nodes, which corrupts LaTeX
+      // commands like \sqrt{b^2-4ac} or \frac{1}{2} that were typed/pasted as plain text)
+      const mathBlocks: string[] = [];
+      const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT);
+      const textNodes: Text[] = [];
+      let node: Node | null;
+      while ((node = walker.nextNode())) textNodes.push(node as Text);
+
+      for (const textNode of textNodes) {
+        const original = textNode.textContent ?? '';
+        const replaced = original.replace(/\$\$[\s\S]+?\$\$|\$[^$\n]+?\$/g, (match) => {
+          mathBlocks.push(match);
+          return `\u0000MATH${mathBlocks.length - 1}\u0000`;
+        });
+        if (replaced !== original) textNode.textContent = replaced;
+      }
+
+      let markdown = td.turndown(div);
+      markdown = markdown.replace(/\u0000MATH(\d+)\u0000/g, (_match, idx) => mathBlocks[parseInt(idx)]);
+
       onChange(markdown);
     },
     editorProps: {
