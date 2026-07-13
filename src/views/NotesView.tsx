@@ -48,6 +48,31 @@ function repairLatex(expr: string): string {
   return out;
 }
 
+// ── Standalone inline renderer for plain strings (essay prompts, short text) ──
+// Handles $inline math$, $$display math$$, **bold**, *italic* — no block-level parsing.
+function renderInlineText(text: string): React.ReactNode {
+  const tokens = text.split(/(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\*\*[^*]+?\*\*|\*[^*\n]+?\*)/g);
+  return tokens.map((token, idx) => {
+    if (token.startsWith('$$') && token.endsWith('$$') && token.length > 4) {
+      try {
+        const html = katex.renderToString(repairLatex(token.slice(2, -2)), { throwOnError: false, displayMode: true });
+        return <span key={idx} className="block overflow-x-auto py-1" dangerouslySetInnerHTML={{ __html: html }} />;
+      } catch { return <span key={idx} className="text-red-400 text-xs">[math error]</span>; }
+    }
+    if (token.startsWith('$') && token.endsWith('$') && token.length > 2) {
+      try {
+        const html = katex.renderToString(repairLatex(token.slice(1, -1)), { throwOnError: false, displayMode: false });
+        return <span key={idx} dangerouslySetInnerHTML={{ __html: html }} />;
+      } catch { return <span key={idx} className="text-red-400 text-xs">[math error]</span>; }
+    }
+    if (token.startsWith('**') && token.endsWith('**'))
+      return <strong key={idx} className="font-semibold">{token.slice(2, -2)}</strong>;
+    if (token.startsWith('*') && token.endsWith('*'))
+      return <em key={idx}>{token.slice(1, -1)}</em>;
+    return <span key={idx}>{token}</span>;
+  });
+}
+
 // ── Markdown + KaTeX renderer ──────────────────────────────────────────────
 
 function renderMarkdownWithKaTeX(markdown: string, themeColor: string, onImageClick: (url: string) => void) {
@@ -779,7 +804,7 @@ export default function NotesView({ route, navigate, profile, showToast, onUpdat
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: tc }}>Learning Objectives</p>
-                <p className="text-sm text-[var(--text-primary)] leading-relaxed">{topic.summary}</p>
+                <p className="text-sm text-[var(--text-primary)] leading-relaxed">{renderInlineText(topic.summary)}</p>
               </div>
             </div>
 
@@ -848,7 +873,7 @@ export default function NotesView({ route, navigate, profile, showToast, onUpdat
                 <div className="p-5 rounded-2xl mb-5" style={{ backgroundColor: tc + '08', border: `1px solid ${tc}20` }}>
                   <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: tc }}>Question {mcqIndex + 1}</p>
                   <p className="font-medium text-base leading-relaxed text-[var(--text-primary)]">
-                    {topic.mcqs[mcqIndex].question}
+                    {renderInlineText(topic.mcqs[mcqIndex].question)}
                   </p>
                 </div>
 
@@ -881,7 +906,7 @@ export default function NotesView({ route, navigate, profile, showToast, onUpdat
                         >
                           {OPTION_LABELS[i]}
                         </span>
-                        {opt}
+                        {renderInlineText(opt)}
                       </button>
                     );
                   })}
@@ -893,7 +918,7 @@ export default function NotesView({ route, navigate, profile, showToast, onUpdat
                     <Lightbulb size={16} className="text-blue-500 shrink-0 mt-0.5" />
                     <div className="text-sm text-blue-800">
                       <span className="font-bold">Explanation: </span>
-                      {topic.mcqs[mcqIndex].explanation}
+                      {renderInlineText(topic.mcqs[mcqIndex].explanation)}
                     </div>
                   </div>
                 )}
@@ -942,14 +967,14 @@ export default function NotesView({ route, navigate, profile, showToast, onUpdat
 
                 <div className="p-5 rounded-2xl mb-5" style={{ backgroundColor: tc + '08', border: `1px solid ${tc}20` }}>
                   <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: tc }}>Question</p>
-                  <p className="text-sm leading-relaxed text-[var(--text-primary)]">{topic.essayPrompt}</p>
+                  <p className="text-sm leading-relaxed text-[var(--text-primary)]">{renderInlineText(topic.essayPrompt)}</p>
                   {topic.essayRubric?.length > 0 && (
                     <div className="mt-3 pt-3 border-t" style={{ borderColor: tc + '30' }}>
                       <p className="text-xs font-bold mb-2" style={{ color: tc }}>Award marks for:</p>
                       <ul className="flex flex-col gap-1">
                         {topic.essayRubric.map((r: string, i: number) => (
                           <li key={i} className="text-xs text-[var(--text-muted)] flex gap-2">
-                            <span className="font-bold" style={{ color: tc }}>[{i + 1}]</span> {r}
+                            <span className="font-bold" style={{ color: tc }}>[{i + 1}]</span> {renderInlineText(r)}
                           </li>
                         ))}
                       </ul>
