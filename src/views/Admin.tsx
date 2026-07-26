@@ -3,7 +3,7 @@ import { ArrowLeft, Plus, Trash2, Edit3, ChevronDown, ChevronUp } from 'lucide-r
 import { SUBJECTS_DB } from '../lib/content';
 import { AkademiDB } from '../lib/db';
 import { supabase } from '../lib/supabase';
-import { PastPaper } from '../types';
+import { PastPaper, EducationLevel } from '../types';
 import RichEditor from '../components/RichEditor';
 
 type Tab = 'metrics' | 'papers' | 'notes';
@@ -11,7 +11,7 @@ type Tab = 'metrics' | 'papers' | 'notes';
 interface CustomTopic {
   id: string;
   subject_id: string;
-  level: 'o' | 'a';
+  level: EducationLevel;
   title: string;
   summary: string;
   content_markdown: string;
@@ -45,12 +45,12 @@ export default function Admin({ navigate, showToast }: any) {
   const [pTitle, setPTitle] = useState('');
   const [pYear, setPYear] = useState('');
   const [pPaperNum, setPPaperNum] = useState('');
-  const [pLevel, setPLevel] = useState<'o' | 'a'>('o');
+  const [pLevel, setPLevel] = useState<EducationLevel>('o');
   const [pSubjectId, setPSubjectId] = useState('');
   const [pFileUrl, setPFileUrl] = useState('');
 
   // ── Notes ──────────────────────────────────────────────────
-  const [nLevel, setNLevel] = useState<'o' | 'a'>('o');
+  const [nLevel, setNLevel] = useState<EducationLevel>('o');
   const [nSubjectId, setNSubjectId] = useState('');
   const [nMode, setNMode] = useState<'new' | 'edit'>('new');
   const [nOverrideTopicId, setNOverrideTopicId] = useState('');
@@ -252,6 +252,7 @@ export default function Admin({ navigate, showToast }: any) {
               <div>
                 <label className="block text-sm font-semibold mb-2">Level</label>
                 <div className="flex bg-[var(--surface-light)] p-1 rounded-xl border border-[var(--border)]">
+                  <button onClick={() => { setPLevel('zjc'); setPSubjectId(''); }} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${pLevel === 'zjc' ? 'bg-white shadow' : 'text-[var(--text-muted)]'}`}>ZJC</button>
                   <button onClick={() => { setPLevel('o'); setPSubjectId(''); }} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${pLevel === 'o' ? 'bg-white shadow' : 'text-[var(--text-muted)]'}`}>O-Level</button>
                   <button onClick={() => { setPLevel('a'); setPSubjectId(''); }} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${pLevel === 'a' ? 'bg-white shadow' : 'text-[var(--text-muted)]'}`}>A-Level</button>
                 </div>
@@ -350,6 +351,7 @@ export default function Admin({ navigate, showToast }: any) {
                 <div>
                   <label className="block text-sm font-semibold mb-2">Level</label>
                   <div className="flex bg-[var(--surface-light)] p-1 rounded-xl border border-[var(--border)] mb-3">
+                    <button onClick={() => { setNLevel('zjc'); setNSubjectId(''); setNOverrideTopicId(''); }} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${nLevel === 'zjc' ? 'bg-white shadow' : 'text-[var(--text-muted)]'}`}>ZJC</button>
                     <button onClick={() => { setNLevel('o'); setNSubjectId(''); setNOverrideTopicId(''); }} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${nLevel === 'o' ? 'bg-white shadow' : 'text-[var(--text-muted)]'}`}>O-Level</button>
                     <button onClick={() => { setNLevel('a'); setNSubjectId(''); setNOverrideTopicId(''); }} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${nLevel === 'a' ? 'bg-white shadow' : 'text-[var(--text-muted)]'}`}>A-Level</button>
                   </div>
