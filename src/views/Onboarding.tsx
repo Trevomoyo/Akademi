@@ -1,10 +1,19 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SUBJECTS_DB } from '../lib/content';
-import { XP_VALUES } from '../lib/xp';
+import { XP_VALUES, formLevelToTier, formLevelLabel } from '../lib/xp';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 const CITIES = ['Harare', 'Bulawayo', 'Gweru', 'Kwekwe', 'Mutare', 'Masvingo', 'Chinhoyi', 'Kadoma', 'Bindura', 'Other'];
+
+const FORM_OPTIONS = [
+  { formLevel: 1, title: 'Form 1', subtitle: 'ZJC — First year' },
+  { formLevel: 2, title: 'Form 2', subtitle: 'ZJC — Second year' },
+  { formLevel: 3, title: 'Form 3', subtitle: 'O-Level — First year' },
+  { formLevel: 4, title: 'Form 4', subtitle: 'O-Level — Exam year' },
+  { formLevel: 5, title: 'Form 5', subtitle: 'A-Level — Lower Sixth' },
+  { formLevel: 6, title: 'Form 6', subtitle: 'A-Level — Upper Sixth' },
+];
 
 export default function Onboarding({ navigate, onUpdateProfile, onCreateProfile }: any) {
   const createProfile = onCreateProfile || onUpdateProfile;
@@ -20,12 +29,14 @@ export default function Onboarding({ navigate, onUpdateProfile, onCreateProfile 
     });
   }, []);
   const [step, setStep] = useState(0);
-  const [level, setLevel] = useState<'o' | 'a'>('o');
+  const [formLevel, setFormLevel] = useState<number>(3);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [school, setSchool] = useState('');
   const [city, setCity] = useState('');
   const [phone, setPhone] = useState('');
+
+  const level = formLevelToTier(formLevel);
 
   const nextStep = () => setStep(s => s + 1);
   const prevStep = () => setStep(s => s - 1);
@@ -52,6 +63,8 @@ export default function Onboarding({ navigate, onUpdateProfile, onCreateProfile 
       school: school.trim(),
       city,
       level,
+      formLevel,
+      lastPromotedYear: new Date().getFullYear(),
       subjects: selectedSubjects,
       xp: XP_VALUES.first_login,
       loginStreak: 1,
@@ -111,7 +124,7 @@ export default function Onboarding({ navigate, onUpdateProfile, onCreateProfile 
           </motion.div>
         )}
 
-        {/* Step 1: Level */}
+        {/* Step 1: Form */}
         {step === 1 && (
           <motion.div
             key="level"
@@ -119,22 +132,19 @@ export default function Onboarding({ navigate, onUpdateProfile, onCreateProfile 
             transition={{ duration: 0.25 }}
             className="flex-1 flex flex-col justify-center px-6 max-w-lg mx-auto w-full pt-16"
           >
-            <h2 className="font-display text-4xl font-bold mb-8 text-center text-[var(--primary)]">Which level are you studying?</h2>
-            <div className="flex flex-col gap-4">
-              <button
-                onClick={() => { setLevel('o'); nextStep(); }}
-                className={`bg-white p-6 rounded-2xl border shadow-sm text-left transition-colors ${level === 'o' ? 'border-[var(--primary)]' : 'border-[var(--border)] hover:border-[var(--primary)]'}`}
-              >
-                <div className="font-bold text-2xl mb-1">O-Level</div>
-                <div className="text-[var(--text-muted)]">Form 3 &amp; 4</div>
-              </button>
-              <button
-                onClick={() => { setLevel('a'); nextStep(); }}
-                className={`bg-white p-6 rounded-2xl border shadow-sm text-left transition-colors ${level === 'a' ? 'border-[var(--primary)]' : 'border-[var(--border)] hover:border-[var(--primary)]'}`}
-              >
-                <div className="font-bold text-2xl mb-1">A-Level</div>
-                <div className="text-[var(--text-muted)]">Lower &amp; Upper Sixth</div>
-              </button>
+            <h2 className="font-display text-3xl font-bold mb-2 text-center text-[var(--primary)]">What form are you in?</h2>
+            <p className="text-center text-[var(--text-muted)] text-sm mb-8">We'll automatically move you up a form every school year</p>
+            <div className="grid grid-cols-2 gap-3">
+              {FORM_OPTIONS.map(opt => (
+                <button
+                  key={opt.formLevel}
+                  onClick={() => { setFormLevel(opt.formLevel); nextStep(); }}
+                  className={`bg-white p-5 rounded-2xl border shadow-sm text-left transition-colors ${formLevel === opt.formLevel ? 'border-[var(--primary)]' : 'border-[var(--border)] hover:border-[var(--primary)]'}`}
+                >
+                  <div className="font-bold text-xl mb-1">{opt.title}</div>
+                  <div className="text-[var(--text-muted)] text-xs">{opt.subtitle}</div>
+                </button>
+              ))}
             </div>
           </motion.div>
         )}
