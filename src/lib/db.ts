@@ -15,6 +15,8 @@ function dbRowToProfile(row: any): UserProfile {
     school: row.school ?? undefined,
     city: row.city ?? undefined,
     level: row.level,
+    formLevel: row.form_level ?? 1,
+    lastPromotedYear: row.last_promoted_year ?? undefined,
     subjects: row.subjects ?? [],
     xp: row.xp,
     loginStreak: row.login_streak,
@@ -34,6 +36,8 @@ function profileToDbRow(p: UserProfile) {
     school: p.school ?? null,
     city: p.city ?? null,
     level: p.level,
+    form_level: p.formLevel,
+    last_promoted_year: p.lastPromotedYear ?? null,
     subjects: p.subjects,
     xp: p.xp,
     login_streak: p.loginStreak,
@@ -208,6 +212,39 @@ export function saveTheme(theme: 'light' | 'dark'): void {
   localStorage.setItem('akademi_theme', theme);
 }
 
+// ── leaderboard ──────────────────────────────────────────────
+
+export interface LeaderboardEntry {
+  id: string;
+  name: string;
+  school?: string;
+  level: string;
+  formLevel: number;
+  subjects: string[];
+  xp: number;
+  loginStreak: number;
+}
+
+export async function getLeaderboard(limit = 100): Promise<LeaderboardEntry[]> {
+  const { data, error } = await supabase
+    .from('leaderboard_view')
+    .select('*')
+    .order('xp', { ascending: false })
+    .limit(limit);
+
+  if (error || !data) return [];
+  return data.map((row: any) => ({
+    id: row.id,
+    name: row.name,
+    school: row.school ?? undefined,
+    level: row.level,
+    formLevel: row.form_level,
+    subjects: row.subjects ?? [],
+    xp: row.xp,
+    loginStreak: row.login_streak,
+  }));
+}
+
 // ── AkademiDB class wrapper (keeps all existing call sites working) ──
 
 export const AkademiDB = {
@@ -222,5 +259,6 @@ export const AkademiDB = {
   addPastPaper,
   getTheme,
   saveTheme,
+  getLeaderboard,
   saveBadges: async () => {}, // deprecated — use awardBadgeDB
 };
