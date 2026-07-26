@@ -10,12 +10,13 @@ import Profile      from './views/Profile';
 import PastPapers   from './views/PastPapers';
 import Subscribe    from './views/Subscribe';
 import Admin        from './views/Admin';
+import Leaderboard  from './views/Leaderboard';
 import Landing      from './views/Landing';
 
 import { supabase }          from './lib/supabase';
 import { AkademiDB }         from './lib/db';
 import { UserProfile }       from './types';
-import { calculateLevel, processDailyLogin, awardBadge, BADGES_DB } from './lib/xp';
+import { calculateLevel, processDailyLogin, awardBadge, BADGES_DB, checkFormPromotion, formLevelLabel } from './lib/xp';
 
 type AppState = 'loading' | 'auth' | 'onboarding' | 'app';
 
@@ -91,13 +92,32 @@ export default function App() {
     if (loginProcessed.current) return;
     loginProcessed.current = true;
 
-    const { xpGained, newStreak, badgeId } = processDailyLogin(p);
-    if (xpGained === 0) return;
+    // Check for automatic form-level promotion (new school year) first
+    const promotion = checkFormPromotion(p);
+    let workingProfile = p;
 
-    const prevLevel = calculateLevel(p.xp);
+    if (promotion.shouldPromote) {
+      workingProfile = {
+        ...p,
+        formLevel: promotion.newFormLevel,
+        level: promotion.newLevel,
+        lastPromotedYear: new Date().getFullYear(),
+      };
+      await AkademiDB.saveProfile(workingProfile);
+      setProfile(workingProfile);
+      setTimeout(() => showToast(`🎓 Promoted! You're now ${formLevelLabel(promotion.newFormLevel)}`), 1200);
+    }
+
+    const { xpGained, newStreak, badgeId } = processDailyLogin(workingProfile);
+    if (xpGained === 0) {
+      // Promotion may still have happened even if daily XP was already granted today
+      return;
+    }
+
+    const prevLevel = calculateLevel(workingProfile.xp);
     const updated: UserProfile = {
-      ...p,
-      xp: p.xp + xpGained,
+      ...workingProfile,
+      xp: workingProfile.xp + xpGained,
       loginStreak: newStreak,
       lastLoginDate: new Date().toISOString(),
     };
@@ -105,16 +125,16 @@ export default function App() {
     await AkademiDB.saveProfile(updated);
     setProfile(updated);
 
-    setTimeout(() => showToast(`+${xpGained} XP — Daily login`), 800);
+    setTimeout(() => showToast(`+${xpGained} XP — Daily login`), promotion.shouldPromote ? 2600 : 800);
 
     const newLevel = calculateLevel(updated.xp);
     if (newLevel > prevLevel) {
-      setTimeout(() => showToast(`🎉 Level up! You're now Level ${newLevel}`), 2500);
+      setTimeout(() => showToast(`🎉 Level up! You're now Level ${newLevel}`), promotion.shouldPromote ? 4200 : 2500);
     }
 
     if (badgeId) {
       const badge = await awardBadge(badgeId);
-      if (badge) setTimeout(() => showToast(`🏅 New badge: ${badge.name}`), 4000);
+      if (badge) setTimeout(() => showToast(`🏅 New badge: ${badge.name}`), promotion.shouldPromote ? 5800 : 4000);
     }
   };
 
@@ -211,6 +231,7 @@ export default function App() {
   else if (route.startsWith('/subject/')) View = SubjectDetail;
   else if (route === '/profile')        View = Profile;
   else if (route === '/pastpapers')     View = PastPapers;
+  else if (route === '/leaderboard')    View = Leaderboard;
   else if (route === '/subscribe')      View = Subscribe;
   else if (route === '/landing')        View = Landing;
   else if (route === '/admin') {
