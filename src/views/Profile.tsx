@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BottomNav } from '../components/BottomNav';
-import { calculateLevel, BADGES_DB, awardBadge } from '../lib/xp';
+import { calculateLevel, BADGES_DB, awardBadge, formLevelLabel } from '../lib/xp';
 import { AkademiDB } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { SUBJECTS_DB } from '../lib/content';
@@ -68,7 +68,7 @@ export default function Profile({ navigate, profile, onUpdateProfile, showToast 
           <div>
             <h2 className="text-2xl font-bold">{profile.name}</h2>
             <div className="text-white/80 text-sm mt-0.5">{profile.school || 'Student'} · {profile.city || 'Zimbabwe'}</div>
-            <div className="text-white/60 text-xs mt-0.5">{profile.level === 'o' ? 'O-Level' : 'A-Level'}</div>
+            <div className="text-white/60 text-xs mt-0.5">{formLevelLabel(profile.formLevel)}</div>
           </div>
         </div>
       </div>
