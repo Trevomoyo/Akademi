@@ -1,18 +1,71 @@
-import { Badge, UserProfile } from '../types';
+import { Badge, UserProfile, EducationLevel } from '../types';
 import { awardBadgeDB } from './db';
 
+// ── Form-level → education tier mapping ────────────────────────
+// Form 1-2 = ZJC, Form 3-4 = O-Level, Form 5-6 = A-Level
+export function formLevelToTier(formLevel: number): EducationLevel {
+  if (formLevel <= 2) return 'zjc';
+  if (formLevel <= 4) return 'o';
+  return 'a';
+}
+
+export function formLevelLabel(formLevel: number): string {
+  const tier = formLevelToTier(formLevel);
+  if (tier === 'zjc') return `Form ${formLevel} (ZJC)`;
+  if (tier === 'o') return `Form ${formLevel} (O-Level)`;
+  const sixthLabel = formLevel === 5 ? 'Lower Sixth' : 'Upper Sixth';
+  return `Form ${formLevel} · ${sixthLabel} (A-Level)`;
+}
+
+/**
+ * Checks whether a student should be auto-promoted to the next form.
+ * Promotion happens once per calendar year, triggered on first login of that year
+ * (intended to align with the Zimbabwean school year starting in January).
+ * Students at Form 6 are not promoted further (they graduate — subscription/UI handles that separately).
+ */
+export function checkFormPromotion(profile: UserProfile): {
+  shouldPromote: boolean;
+  newFormLevel: number;
+  newLevel: EducationLevel;
+} {
+  const currentYear = new Date().getFullYear();
+  const alreadyPromotedThisYear = profile.lastPromotedYear === currentYear;
+
+  if (alreadyPromotedThisYear || profile.formLevel >= 6) {
+    return { shouldPromote: false, newFormLevel: profile.formLevel, newLevel: profile.level };
+  }
+
+  // Only promote once we're actually into a new calendar year relative to
+  // when the profile was created/last promoted. If lastPromotedYear is unset
+  // (older accounts), treat account creation year as the baseline via lastLoginDate's year.
+  const baselineYear = profile.lastPromotedYear
+    ?? new Date(profile.lastLoginDate || Date.now()).getFullYear();
+
+  if (currentYear <= baselineYear) {
+    return { shouldPromote: false, newFormLevel: profile.formLevel, newLevel: profile.level };
+  }
+
+  const newFormLevel = Math.min(profile.formLevel + 1, 6);
+  return {
+    shouldPromote: true,
+    newFormLevel,
+    newLevel: formLevelToTier(newFormLevel),
+  };
+}
+
+
 export const XP_VALUES = {
-  first_login: 50,
-  read_notes: 10,
-  mcq_correct: 25,
-  mcq_perfect: 150,
-  essay_submit: 50,
-  essay_high_score: 100,
-  daily_login: 20,
-  streak_3: 75,
-  streak_7: 200,
-  streak_14: 400,
-  certificate_claim: 500,
+  first_login: 25,
+  read_notes: 5,
+  mcq_correct: 10,
+  mcq_perfect: 60,
+  essay_submit: 20,
+  essay_high_score: 40,
+  daily_login: 8,
+  streak_3: 30,
+  streak_7: 80,
+  streak_14: 150,
+  certificate_claim: 200,
 };
 
 export const BADGES_DB: Badge[] = [
@@ -29,7 +82,9 @@ export const BADGES_DB: Badge[] = [
 ];
 
 export function calculateLevel(xp: number): number {
-  return Math.min(Math.floor(Math.sqrt(xp / 100)) + 1, 50);
+  // Steeper curve than before — divisor increased from 100 to 250,
+  // meaning roughly 2.5x more XP is needed to reach the same level.
+  return Math.min(Math.floor(Math.sqrt(xp / 250)) + 1, 50);
 }
 
 export function evaluateTopicStars(
