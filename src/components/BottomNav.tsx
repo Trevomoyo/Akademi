@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, BookOpen, FileText, User } from 'lucide-react';
+import { Home, FileText, User, Trophy } from 'lucide-react';
 
 interface BottomNavProps {
   activeTab: string;
@@ -9,10 +9,10 @@ interface BottomNavProps {
 
 export function BottomNav({ activeTab, onNavigate, themeColor = "var(--primary)" }: BottomNavProps) {
   const tabs = [
-    { label: "Home",     icon: Home,     route: "/dashboard" },
-    { label: "Subjects", icon: BookOpen, route: "/dashboard" },
-    { label: "Papers",   icon: FileText, route: "/pastpapers" },
-    { label: "Profile",  icon: User,     route: "/profile" },
+    { label: "Home",      icon: Home,     route: "/dashboard" },
+    { label: "Leaders",   icon: Trophy,   route: "/leaderboard" },
+    { label: "Papers",    icon: FileText, route: "/pastpapers" },
+    { label: "Profile",   icon: User,     route: "/profile" },
   ];
 
   return (
