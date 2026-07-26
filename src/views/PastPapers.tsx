@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BottomNav } from '../components/BottomNav';
 import { SUBJECTS_DB } from '../lib/content';
 import { AkademiDB } from '../lib/db';
-import { PastPaper } from '../types';
+import { PastPaper, EducationLevel } from '../types';
 import { Download, Lock } from 'lucide-react';
 
 // Seed papers shown to everyone (public preview)
@@ -18,8 +18,14 @@ const SEED_PAPERS: PastPaper[] = [
 
 const YEARS = [2024, 2023, 2022, 2021, 2020, 2019, 2018];
 
-export default function PastPapers({ navigate, profile }: any) {
-  const [level, setLevel]             = useState<'o' | 'a'>('o');
+const LEVEL_TABS: { key: EducationLevel; label: string }[] = [
+  { key: 'zjc', label: 'ZJC' },
+  { key: 'o',   label: 'O-Level' },
+  { key: 'a',   label: 'A-Level' },
+];
+
+export default function PastPapers({ navigate, profile, showToast }: any) {
+  const [level, setLevel] = useState<EducationLevel>(profile?.level ?? 'o');
   const [subjectFilter, setSubjectFilter] = useState('');
   const [yearFilter, setYearFilter]   = useState('');
   const [papers, setPapers]           = useState<PastPaper[]>([]);
@@ -46,8 +52,7 @@ export default function PastPapers({ navigate, profile }: any) {
     if (p.fileUrl && p.fileUrl !== '#') {
       window.open(p.fileUrl, '_blank');
     } else {
-      // placeholder — real URL not yet uploaded
-      showToast('This paper is not yet available. Check back soon.');
+      showToast?.('This paper is not yet available. Check back soon.');
     }
   };
 
@@ -59,14 +64,15 @@ export default function PastPapers({ navigate, profile }: any) {
 
         {/* Level toggle */}
         <div className="flex bg-[var(--surface-light)] p-1 rounded-full w-max mb-5 border border-[var(--border)]">
-          <button
-            onClick={() => { setLevel('o'); setSubjectFilter(''); }}
-            className={`px-6 py-2 rounded-full text-sm font-semibold transition-colors ${level === 'o' ? 'bg-white shadow text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}
-          >O-Level</button>
-          <button
-            onClick={() => { setLevel('a'); setSubjectFilter(''); }}
-            className={`px-6 py-2 rounded-full text-sm font-semibold transition-colors ${level === 'a' ? 'bg-white shadow text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}
-          >A-Level</button>
+          {LEVEL_TABS.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => { setLevel(tab.key); setSubjectFilter(''); }}
+              className={`px-5 py-2 rounded-full text-sm font-semibold transition-colors ${level === tab.key ? 'bg-white shadow text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* Filters */}
