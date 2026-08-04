@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 import { PastPaper, EducationLevel } from '../types';
 import RichEditor from '../components/RichEditor';
 
-type Tab = 'metrics' | 'papers' | 'notes';
+type Tab = 'metrics' | 'papers' | 'notes' | 'teachers';
 
 interface CustomTopic {
   id: string;
@@ -64,6 +64,41 @@ export default function Admin({ navigate, showToast }: any) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [expandedMCQ, setExpandedMCQ] = useState<number | null>(null);
+
+  // ── Teacher applications ──────────────────────────────────
+  const [applications, setApplications] = useState<any[]>([]);
+  const [appFilter, setAppFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
+  const [appLoading, setAppLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'teachers') fetchApplications();
+  }, [activeTab, appFilter]);
+
+  async function fetchApplications() {
+    setAppLoading(true);
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/admin/teacher-applications?status=${appFilter}`, { headers });
+    const data = await res.json();
+    setApplications(data.applications ?? []);
+    setAppLoading(false);
+  }
+
+  async function handleApprove(id: string) {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/admin/teacher-applications/${id}/approve`, { method: 'POST', headers });
+    if (res.ok) { showToast('Teacher approved!'); fetchApplications(); }
+    else showToast('Approval failed');
+  }
+
+  async function handleReject(id: string) {
+    const reason = prompt('Reason for rejection (optional):') ?? undefined;
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/admin/teacher-applications/${id}/reject`, {
+      method: 'POST', headers, body: JSON.stringify({ reason }),
+    });
+    if (res.ok) { showToast('Application rejected'); fetchApplications(); }
+    else showToast('Rejection failed');
+  }
 
   useEffect(() => {
     (async () => {
@@ -199,6 +234,7 @@ export default function Admin({ navigate, showToast }: any) {
     { key: 'metrics', label: 'Metrics' },
     { key: 'papers', label: 'Past Papers' },
     { key: 'notes', label: 'Notes Editor' },
+    { key: 'teachers', label: 'Teachers' },
   ];
 
   return (
@@ -517,6 +553,76 @@ export default function Admin({ navigate, showToast }: any) {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── TEACHER APPLICATIONS ─────────────────────── */}
+        {activeTab === 'teachers' && (
+          <div className="bg-white rounded-2xl border border-[var(--border)] p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-bold text-xl">Teacher Applications</h2>
+              <select
+                value={appFilter}
+                onChange={e => setAppFilter(e.target.value as any)}
+                className="border border-[var(--border)] rounded-lg px-3 py-1.5 text-sm outline-none"
+              >
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="all">All</option>
+              </select>
+            </div>
+
+            {appLoading ? (
+              <div className="text-center text-[var(--text-muted)] py-10">Loading…</div>
+            ) : applications.length === 0 ? (
+              <div className="text-center text-[var(--text-muted)] py-10">No {appFilter !== 'all' ? appFilter : ''} applications.</div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {applications.map(app => (
+                  <div key={app.id} className="border border-[var(--border)] rounded-xl p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <div className="font-bold text-base">{app.full_name}</div>
+                        <div className="text-xs text-[var(--text-muted)]">
+                          {app.school || 'No school'} · {app.subject_specialisation || 'No subject specified'}
+                        </div>
+                      </div>
+                      <span className={`text-xs font-bold uppercase px-2 py-1 rounded-full ${
+                        app.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                        app.status === 'approved' ? 'bg-green-100 text-green-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {app.status}
+                      </span>
+                    </div>
+
+                    {app.credentials_note && (
+                      <p className="text-sm text-[var(--text-muted)] mb-3 leading-relaxed">{app.credentials_note}</p>
+                    )}
+
+                    <div className="flex flex-wrap gap-3 text-xs text-[var(--text-muted)] mb-3">
+                      {app.email && <span>📧 {app.email}</span>}
+                      {app.phone && <span>📞 {app.phone}</span>}
+                    </div>
+
+                    {app.status === 'pending' && (
+                      <div className="flex gap-2">
+                        <button onClick={() => handleApprove(app.id)} className="flex-1 bg-[var(--primary)] text-white py-2 rounded-lg text-sm font-bold">
+                          Approve
+                        </button>
+                        <button onClick={() => handleReject(app.id)} className="flex-1 bg-red-50 text-red-600 py-2 rounded-lg text-sm font-bold">
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                    {app.status === 'rejected' && app.rejection_reason && (
+                      <p className="text-xs text-red-500 italic">Reason: {app.rejection_reason}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
