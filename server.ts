@@ -145,6 +145,22 @@ async function requireAdmin(req: any, res: any, next: any) {
   next();
 }
 
+// ── Teacher middleware ─────────────────────────────────────────
+async function requireTeacher(req: any, res: any, next: any) {
+  const { data } = await supabaseAdmin
+    .from('profiles').select('is_teacher').eq('id', req.user.id).single();
+  if (!data?.is_teacher) { res.status(403).json({ error: 'Teacher access only' }); return; }
+  next();
+}
+
+// ── Generate a random 6-character join code (no ambiguous chars) ──
+function generateJoinCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no O/0, I/1 confusion
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
 // ────────────────────────────────────────────────────────────
 // HEALTH
 // ────────────────────────────────────────────────────────────
@@ -587,6 +603,358 @@ app.post('/api/admin/grant', requireAuth, requireAdmin, async (req: any, res: an
   if (!userId) { res.status(400).json({ error: 'userId required' }); return; }
 
   const { error } = await supabaseAdmin.from('profiles').update({ is_admin: true }).eq('id', userId);
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ success: true });
+});
+
+// ════════════════════════════════════════════════════════════
+// TEACHER APPLICATIONS
+// ════════════════════════════════════════════════════════════
+
+// Submit an application — applicant already has a real student-style auth account,
+// this just files the review request tied to their existing profile.
+app.post('/api/teacher/apply', requireAuth, async (req: any, res: any): Promise<void> => {
+  const { fullName, email, phone, school, subjectSpecialisation, credentialsNote } = req.body;
+
+  if (!fullName?.trim()) {
+    res.status(400).json({ error: 'fullName is required' });
+    return;
+  }
+
+  const { data: existing } = await supabaseAdmin
+    .from('teacher_applications').select('id, status').eq('applicant_id', req.user.id).single();
+
+  if (existing && existing.status === 'pending') {
+    res.status(409).json({ error: 'You already have a pending application' });
+    return;
+  }
+  if (existing && existing.status === 'approved') {
+    res.status(409).json({ error: 'You are already an approved teacher' });
+    return;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('teacher_applications')
+    .upsert({
+      applicant_id: req.user.id,
+      full_name: fullName.trim(),
+      email: email ?? null,
+      phone: phone ?? null,
+      school: school ?? null,
+      subject_specialisation: subjectSpecialisation ?? null,
+      credentials_note: credentialsNote ?? null,
+      status: 'pending',
+      reviewed_by: null,
+      reviewed_at: null,
+      rejection_reason: null,
+    }, { onConflict: 'applicant_id' })
+    .select().single();
+
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ application: data });
+});
+
+// Check my own application status
+app.get('/api/teacher/my-application', requireAuth, async (req: any, res: any): Promise<void> => {
+  const { data } = await supabaseAdmin
+    .from('teacher_applications').select('*').eq('applicant_id', req.user.id).single();
+  res.json({ application: data ?? null });
+});
+
+// Admin: list all applications (default: pending only)
+app.get('/api/admin/teacher-applications', requireAuth, requireAdmin, async (req: any, res: any): Promise<void> => {
+  const status = (req.query.status as string) ?? 'pending';
+  let query = supabaseAdmin.from('teacher_applications').select('*').order('created_at', { ascending: false });
+  if (status !== 'all') query = query.eq('status', status);
+
+  const { data, error } = await query;
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ applications: data ?? [] });
+});
+
+// Admin: approve — flips is_teacher on the applicant's existing profile
+app.post('/api/admin/teacher-applications/:id/approve', requireAuth, requireAdmin, async (req: any, res: any): Promise<void> => {
+  const { data: application, error: findErr } = await supabaseAdmin
+    .from('teacher_applications').select('*').eq('id', req.params.id).single();
+
+  if (findErr || !application) { res.status(404).json({ error: 'Application not found' }); return; }
+
+  const { error: profileErr } = await supabaseAdmin
+    .from('profiles').update({ is_teacher: true }).eq('id', application.applicant_id);
+  if (profileErr) { res.status(500).json({ error: profileErr.message }); return; }
+
+  const { error: appErr } = await supabaseAdmin
+    .from('teacher_applications')
+    .update({ status: 'approved', reviewed_by: req.user.id, reviewed_at: new Date().toISOString() })
+    .eq('id', req.params.id);
+  if (appErr) { res.status(500).json({ error: appErr.message }); return; }
+
+  res.json({ success: true });
+});
+
+// Admin: reject
+app.post('/api/admin/teacher-applications/:id/reject', requireAuth, requireAdmin, async (req: any, res: any): Promise<void> => {
+  const { reason } = req.body;
+  const { error } = await supabaseAdmin
+    .from('teacher_applications')
+    .update({ status: 'rejected', reviewed_by: req.user.id, reviewed_at: new Date().toISOString(), rejection_reason: reason ?? null })
+    .eq('id', req.params.id);
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ success: true });
+});
+
+// ════════════════════════════════════════════════════════════
+// CLASSROOMS
+// ════════════════════════════════════════════════════════════
+
+// Teacher: create a classroom
+app.post('/api/teacher/classrooms', requireAuth, requireTeacher, async (req: any, res: any): Promise<void> => {
+  const { name, subjectId, level, description } = req.body;
+  if (!name?.trim() || !subjectId || !level) {
+    res.status(400).json({ error: 'name, subjectId, and level are required' });
+    return;
+  }
+
+  // Generate a unique join code (retry on collision, extremely unlikely with 6 chars)
+  let joinCode = generateJoinCode();
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data: clash } = await supabaseAdmin.from('classrooms').select('id').eq('join_code', joinCode).single();
+    if (!clash) break;
+    joinCode = generateJoinCode();
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('classrooms')
+    .insert({ teacher_id: req.user.id, name: name.trim(), subject_id: subjectId, level, description: description ?? null, join_code: joinCode })
+    .select().single();
+
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ classroom: data });
+});
+
+// Teacher: list my classrooms
+app.get('/api/teacher/classrooms', requireAuth, requireTeacher, async (req: any, res: any): Promise<void> => {
+  const { data, error } = await supabaseAdmin
+    .from('classrooms').select('*').eq('teacher_id', req.user.id).order('created_at', { ascending: false });
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ classrooms: data ?? [] });
+});
+
+// Teacher: classroom roster
+app.get('/api/teacher/classrooms/:id/members', requireAuth, requireTeacher, async (req: any, res: any): Promise<void> => {
+  const { data: classroom } = await supabaseAdmin.from('classrooms').select('teacher_id').eq('id', req.params.id).single();
+  if (!classroom || classroom.teacher_id !== req.user.id) { res.status(403).json({ error: 'Not your classroom' }); return; }
+
+  const { data, error } = await supabaseAdmin
+    .from('classroom_members')
+    .select('id, joined_via, joined_at, student:profiles!classroom_members_student_id_fkey(id, name, school, form_level, xp)')
+    .eq('classroom_id', req.params.id)
+    .order('joined_at', { ascending: false });
+
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ members: data ?? [] });
+});
+
+// Teacher: manually add a student by username
+app.post('/api/teacher/classrooms/:id/add-member', requireAuth, requireTeacher, async (req: any, res: any): Promise<void> => {
+  const { username } = req.body;
+  if (!username?.trim()) { res.status(400).json({ error: 'username is required' }); return; }
+
+  const { data: classroom } = await supabaseAdmin.from('classrooms').select('teacher_id').eq('id', req.params.id).single();
+  if (!classroom || classroom.teacher_id !== req.user.id) { res.status(403).json({ error: 'Not your classroom' }); return; }
+
+  const { data: student, error: findErr } = await supabaseAdmin
+    .from('profiles').select('id').ilike('name', username.trim()).single();
+  if (findErr || !student) { res.status(404).json({ error: 'No student found with that username' }); return; }
+
+  const { error } = await supabaseAdmin
+    .from('classroom_members')
+    .insert({ classroom_id: req.params.id, student_id: student.id, joined_via: 'manual' });
+
+  if (error) {
+    res.status(error.code === '23505' ? 409 : 500).json({ error: error.code === '23505' ? 'Student already in this class' : error.message });
+    return;
+  }
+  res.json({ success: true });
+});
+
+// Teacher: remove a member
+app.delete('/api/teacher/classrooms/:id/members/:studentId', requireAuth, requireTeacher, async (req: any, res: any): Promise<void> => {
+  const { data: classroom } = await supabaseAdmin.from('classrooms').select('teacher_id').eq('id', req.params.id).single();
+  if (!classroom || classroom.teacher_id !== req.user.id) { res.status(403).json({ error: 'Not your classroom' }); return; }
+
+  const { error } = await supabaseAdmin
+    .from('classroom_members').delete().eq('classroom_id', req.params.id).eq('student_id', req.params.studentId);
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ success: true });
+});
+
+// Student: join a classroom by code
+app.post('/api/classrooms/join', requireAuth, async (req: any, res: any): Promise<void> => {
+  const { joinCode } = req.body;
+  if (!joinCode?.trim()) { res.status(400).json({ error: 'joinCode is required' }); return; }
+
+  const { data: classroom, error: findErr } = await supabaseAdmin
+    .from('classrooms').select('*').eq('join_code', joinCode.trim().toUpperCase()).single();
+  if (findErr || !classroom) { res.status(404).json({ error: 'Invalid join code' }); return; }
+
+  const { error } = await supabaseAdmin
+    .from('classroom_members')
+    .insert({ classroom_id: classroom.id, student_id: req.user.id, joined_via: 'code' });
+
+  if (error) {
+    res.status(error.code === '23505' ? 409 : 500).json({ error: error.code === '23505' ? 'You are already in this class' : error.message });
+    return;
+  }
+  res.json({ classroom });
+});
+
+// Student: list my classrooms
+app.get('/api/classrooms/mine', requireAuth, async (req: any, res: any): Promise<void> => {
+  const { data, error } = await supabaseAdmin
+    .from('classroom_members')
+    .select('classroom:classrooms(*)')
+    .eq('student_id', req.user.id);
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ classrooms: (data ?? []).map((r: any) => r.classroom).filter(Boolean) });
+});
+
+// Anyone in the class (teacher or member): posts feed
+app.get('/api/classrooms/:id/posts', requireAuth, async (req: any, res: any): Promise<void> => {
+  const { data, error } = await supabaseAdmin
+    .from('classroom_posts')
+    .select('*, author:profiles(id, name)')
+    .eq('classroom_id', req.params.id)
+    .order('created_at', { ascending: false });
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ posts: data ?? [] });
+});
+
+// Teacher: create a post/announcement
+app.post('/api/teacher/classrooms/:id/posts', requireAuth, requireTeacher, async (req: any, res: any): Promise<void> => {
+  const { content } = req.body;
+  if (!content?.trim()) { res.status(400).json({ error: 'content is required' }); return; }
+
+  const { data: classroom } = await supabaseAdmin.from('classrooms').select('teacher_id').eq('id', req.params.id).single();
+  if (!classroom || classroom.teacher_id !== req.user.id) { res.status(403).json({ error: 'Not your classroom' }); return; }
+
+  const { data, error } = await supabaseAdmin
+    .from('classroom_posts').insert({ classroom_id: req.params.id, author_id: req.user.id, content: content.trim() }).select().single();
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ post: data });
+});
+
+// Anyone in the class: assignments list
+app.get('/api/classrooms/:id/assignments', requireAuth, async (req: any, res: any): Promise<void> => {
+  const { data, error } = await supabaseAdmin
+    .from('classroom_assignments').select('*').eq('classroom_id', req.params.id).order('created_at', { ascending: false });
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ assignments: data ?? [] });
+});
+
+// Teacher: create an assignment (existing topic ref OR fully custom content)
+app.post('/api/teacher/classrooms/:id/assignments', requireAuth, requireTeacher, async (req: any, res: any): Promise<void> => {
+  const { topicRefId, isCustomTopicRef, customTitle, customContentMarkdown, dueDate } = req.body;
+
+  const { data: classroom } = await supabaseAdmin.from('classrooms').select('teacher_id').eq('id', req.params.id).single();
+  if (!classroom || classroom.teacher_id !== req.user.id) { res.status(403).json({ error: 'Not your classroom' }); return; }
+
+  if (!topicRefId && !customContentMarkdown?.trim()) {
+    res.status(400).json({ error: 'Either topicRefId or customContentMarkdown is required' });
+    return;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('classroom_assignments')
+    .insert({
+      classroom_id: req.params.id,
+      topic_ref_id: topicRefId ?? null,
+      is_custom_topic_ref: isCustomTopicRef ?? false,
+      custom_title: customTitle ?? null,
+      custom_content_markdown: customContentMarkdown ?? null,
+      due_date: dueDate ?? null,
+      created_by: req.user.id,
+    })
+    .select().single();
+
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ assignment: data });
+});
+
+// Teacher: delete a classroom
+app.delete('/api/teacher/classrooms/:id', requireAuth, requireTeacher, async (req: any, res: any): Promise<void> => {
+  const { data: classroom } = await supabaseAdmin.from('classrooms').select('teacher_id').eq('id', req.params.id).single();
+  if (!classroom || classroom.teacher_id !== req.user.id) { res.status(403).json({ error: 'Not your classroom' }); return; }
+
+  const { error } = await supabaseAdmin.from('classrooms').delete().eq('id', req.params.id);
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ success: true });
+});
+
+// ════════════════════════════════════════════════════════════
+// DISCUSSION GROUPS (open, student-created)
+// ════════════════════════════════════════════════════════════
+
+app.get('/api/discussion-groups', requireAuth, async (req: any, res: any): Promise<void> => {
+  const subjectId = req.query.subjectId as string | undefined;
+  let query = supabaseAdmin.from('discussion_groups').select('*, creator:profiles(id, name)').order('created_at', { ascending: false });
+  if (subjectId) query = query.eq('subject_id', subjectId);
+
+  const { data, error } = await query;
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ groups: data ?? [] });
+});
+
+app.post('/api/discussion-groups', requireAuth, async (req: any, res: any): Promise<void> => {
+  const { subjectId, name, description } = req.body;
+  if (!subjectId || !name?.trim()) { res.status(400).json({ error: 'subjectId and name are required' }); return; }
+
+  const { data, error } = await supabaseAdmin
+    .from('discussion_groups')
+    .insert({ subject_id: subjectId, name: name.trim(), description: description ?? null, created_by: req.user.id })
+    .select().single();
+
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ group: data });
+});
+
+app.delete('/api/discussion-groups/:id', requireAuth, async (req: any, res: any): Promise<void> => {
+  const { data: group } = await supabaseAdmin.from('discussion_groups').select('created_by').eq('id', req.params.id).single();
+  if (!group || group.created_by !== req.user.id) { res.status(403).json({ error: 'Only the creator can delete this group' }); return; }
+
+  const { error } = await supabaseAdmin.from('discussion_groups').delete().eq('id', req.params.id);
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ success: true });
+});
+
+app.get('/api/discussion-groups/:id/posts', requireAuth, async (req: any, res: any): Promise<void> => {
+  const { data, error } = await supabaseAdmin
+    .from('discussion_posts')
+    .select('*, author:profiles(id, name)')
+    .eq('group_id', req.params.id)
+    .order('created_at', { ascending: true });
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ posts: data ?? [] });
+});
+
+app.post('/api/discussion-groups/:id/posts', requireAuth, async (req: any, res: any): Promise<void> => {
+  const { content, parentPostId } = req.body;
+  if (!content?.trim()) { res.status(400).json({ error: 'content is required' }); return; }
+
+  const { data, error } = await supabaseAdmin
+    .from('discussion_posts')
+    .insert({ group_id: req.params.id, author_id: req.user.id, content: content.trim(), parent_post_id: parentPostId ?? null })
+    .select('*, author:profiles(id, name)').single();
+
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ post: data });
+});
+
+app.delete('/api/discussion-posts/:id', requireAuth, async (req: any, res: any): Promise<void> => {
+  const { data: post } = await supabaseAdmin.from('discussion_posts').select('author_id').eq('id', req.params.id).single();
+  if (!post || post.author_id !== req.user.id) { res.status(403).json({ error: 'Only the author can delete this post' }); return; }
+
+  const { error } = await supabaseAdmin.from('discussion_posts').delete().eq('id', req.params.id);
   if (error) { res.status(500).json({ error: error.message }); return; }
   res.json({ success: true });
 });
