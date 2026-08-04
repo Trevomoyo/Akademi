@@ -52,6 +52,7 @@ export interface UserProfile {
   subscriptionStatus: "active" | "trial" | "expired";
   subscriptionExpiresAt?: string;
   isAdmin?: boolean;
+  isTeacher?: boolean;
   theme: "light" | "dark";
 }
 
