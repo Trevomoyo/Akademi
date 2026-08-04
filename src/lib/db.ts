@@ -24,6 +24,7 @@ function dbRowToProfile(row: any): UserProfile {
     subscriptionStatus: row.subscription_status,
     subscriptionExpiresAt: row.subscription_expires_at ?? undefined,
     isAdmin: row.is_admin ?? false,
+    isTeacher: row.is_teacher ?? false,
     theme: row.theme ?? 'light',
   };
 }
@@ -45,6 +46,7 @@ function profileToDbRow(p: UserProfile) {
     subscription_status: p.subscriptionStatus,
     subscription_expires_at: p.subscriptionExpiresAt ?? null,
     is_admin: p.isAdmin ?? false,
+    is_teacher: p.isTeacher ?? false,
     theme: p.theme,
   };
 }
