@@ -14,6 +14,32 @@ export default function Profile({ navigate, profile, onUpdateProfile, showToast 
   const level = calculateLevel(profile.xp);
   const [earnedBadges, setEarnedBadges] = useState<any[]>([]);
   const mySubjects = SUBJECTS_DB.filter(s => profile.subjects.includes(s.id));
+  const [joinModalOpen, setJoinModalOpen] = useState(false);
+  const [joinCode, setJoinCode] = useState('');
+  const [joining, setJoining] = useState(false);
+
+  async function handleJoinClass() {
+    if (!joinCode.trim()) return;
+    setJoining(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/classrooms/join', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session?.access_token ?? ''}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ joinCode: joinCode.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Failed to join');
+      showToast(`Joined "${data.classroom.name}"!`);
+      setJoinModalOpen(false);
+      setJoinCode('');
+      navigate(`/classroom/${data.classroom.id}`);
+    } catch (e: any) {
+      showToast(e.message ?? 'Invalid join code');
+    } finally {
+      setJoining(false);
+    }
+  }
 
   useEffect(() => {
     AkademiDB.getBadges().then(setEarnedBadges);
@@ -140,6 +166,50 @@ export default function Profile({ navigate, profile, onUpdateProfile, showToast 
           </div>
         )}
 
+        {/* Teacher / Discussions entry points */}
+        <div className="grid grid-cols-2 gap-3">
+          {profile.isTeacher ? (
+            <button
+              onClick={() => navigate('/teacher-dashboard')}
+              className="bg-white p-4 rounded-2xl shadow-sm border border-[var(--border)] text-left hover:border-[var(--primary)] transition-colors"
+            >
+              <div className="text-2xl mb-1">🎓</div>
+              <div className="font-bold text-sm">Teacher Dashboard</div>
+              <div className="text-xs text-[var(--text-muted)]">Manage your classrooms</div>
+            </button>
+          ) : (
+            <button
+              onClick={() => setJoinModalOpen(true)}
+              className="bg-white p-4 rounded-2xl shadow-sm border border-[var(--border)] text-left hover:border-[var(--primary)] transition-colors"
+            >
+              <div className="text-2xl mb-1">🔑</div>
+              <div className="font-bold text-sm">Join a Class</div>
+              <div className="text-xs text-[var(--text-muted)]">Enter your teacher's code</div>
+            </button>
+          )}
+          <button
+            onClick={() => navigate('/discussions')}
+            className="bg-white p-4 rounded-2xl shadow-sm border border-[var(--border)] text-left hover:border-[var(--primary)] transition-colors"
+          >
+            <div className="text-2xl mb-1">💬</div>
+            <div className="font-bold text-sm">Discussions</div>
+            <div className="text-xs text-[var(--text-muted)]">Join study groups</div>
+          </button>
+        </div>
+
+        {!profile.isTeacher && (
+          <button
+            onClick={() => navigate('/teacher-apply')}
+            className="bg-white p-4 rounded-2xl shadow-sm border border-[var(--border)] text-left hover:border-[var(--primary)] transition-colors flex items-center gap-3"
+          >
+            <span className="text-2xl">🎓</span>
+            <div>
+              <div className="font-bold text-sm">Become a Teacher</div>
+              <div className="text-xs text-[var(--text-muted)]">Apply to teach on Akademì</div>
+            </div>
+          </button>
+        )}
+
         {/* Subscription status */}
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-[var(--border)] flex items-center justify-between">
           <div>
@@ -205,6 +275,34 @@ export default function Profile({ navigate, profile, onUpdateProfile, showToast 
               className="w-full bg-[var(--primary)] text-white py-4 rounded-full font-bold mt-4 disabled:opacity-50"
             >
               Save ({draftSubjects.length} selected)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Join classroom modal */}
+      {joinModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setJoinModalOpen(false)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-lg">Join a Classroom</h3>
+              <button onClick={() => setJoinModalOpen(false)} className="p-2 hover:bg-black/5 rounded-full"><X size={18} /></button>
+            </div>
+            <p className="text-sm text-[var(--text-muted)] mb-4">Enter the 6-character code your teacher shared with you.</p>
+            <input
+              value={joinCode}
+              onChange={e => setJoinCode(e.target.value.toUpperCase())}
+              onKeyDown={e => e.key === 'Enter' && handleJoinClass()}
+              placeholder="e.g. K7F2QX"
+              maxLength={6}
+              className="w-full border border-[var(--border)] rounded-xl p-3 text-center text-xl font-bold tracking-widest outline-none focus:border-[var(--primary)] mb-4 uppercase"
+            />
+            <button
+              onClick={handleJoinClass}
+              disabled={joining || joinCode.length !== 6}
+              className="w-full bg-[var(--primary)] text-white py-3 rounded-xl font-bold disabled:opacity-50"
+            >
+              {joining ? 'Joining…' : 'Join Class'}
             </button>
           </div>
         </div>
