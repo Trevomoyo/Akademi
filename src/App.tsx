@@ -11,6 +11,11 @@ import PastPapers   from './views/PastPapers';
 import Subscribe    from './views/Subscribe';
 import Admin        from './views/Admin';
 import Leaderboard  from './views/Leaderboard';
+import TeacherApply  from './views/TeacherApply';
+import TeacherDashboard from './views/TeacherDashboard';
+import ClassroomDetail from './views/ClassroomDetail';
+import DiscussionGroups from './views/DiscussionGroups';
+import DiscussionThread from './views/DiscussionThread';
 import Landing      from './views/Landing';
 
 import { supabase }          from './lib/supabase';
@@ -232,6 +237,14 @@ export default function App() {
   else if (route === '/profile')        View = Profile;
   else if (route === '/pastpapers')     View = PastPapers;
   else if (route === '/leaderboard')    View = Leaderboard;
+  else if (route === '/teacher-apply')  View = TeacherApply;
+  else if (route.startsWith('/classroom/')) View = ClassroomDetail;
+  else if (route === '/discussions')    View = DiscussionGroups;
+  else if (route.startsWith('/discussion/')) View = DiscussionThread;
+  else if (route === '/teacher-dashboard') {
+    if (!profile?.isTeacher) { navigate('/dashboard'); View = Dashboard; }
+    else View = TeacherDashboard;
+  }
   else if (route === '/subscribe')      View = Subscribe;
   else if (route === '/landing')        View = Landing;
   else if (route === '/admin') {
