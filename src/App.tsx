@@ -11,11 +11,11 @@ import PastPapers   from './views/PastPapers';
 import Subscribe    from './views/Subscribe';
 import Admin        from './views/Admin';
 import Leaderboard  from './views/Leaderboard';
-import TeacherApply  from './views/TeacherApply';
-import TeacherDashboard from './views/TeacherDashboard';
-import ClassroomDetail from './views/ClassroomDetail';
-import DiscussionGroups from './views/DiscussionGroups';
-import DiscussionThread from './views/DiscussionThread';
+import TeacherApply  from './views/Teacherapply';
+import TeacherDashboard from './views/Teacherdashboard';
+import ClassroomDetail from './views/Classroomdetail';
+import DiscussionGroups from './views/Discussiongroups';
+import DiscussionThread from './views/Discussionthread';
 import Landing      from './views/Landing';
 
 import { supabase }          from './lib/supabase';
