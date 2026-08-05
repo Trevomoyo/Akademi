@@ -5,7 +5,7 @@ import { AkademiDB } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { SUBJECTS_DB } from '../lib/content';
 import { ThreeCertificate } from '../components/ThreeCertificate';
-import { X } from 'lucide-react';
+import { X, GraduationCap, MessageSquare, KeyRound } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export default function Profile({ navigate, profile, onUpdateProfile, showToast }: any) {
@@ -173,7 +173,7 @@ export default function Profile({ navigate, profile, onUpdateProfile, showToast 
               onClick={() => navigate('/teacher-dashboard')}
               className="bg-white p-4 rounded-2xl shadow-sm border border-[var(--border)] text-left hover:border-[var(--primary)] transition-colors"
             >
-              <div className="text-2xl mb-1">🎓</div>
+              <GraduationCap size={22} className="text-[var(--primary)] mb-1.5" />
               <div className="font-bold text-sm">Teacher Dashboard</div>
               <div className="text-xs text-[var(--text-muted)]">Manage your classrooms</div>
             </button>
@@ -182,7 +182,7 @@ export default function Profile({ navigate, profile, onUpdateProfile, showToast 
               onClick={() => setJoinModalOpen(true)}
               className="bg-white p-4 rounded-2xl shadow-sm border border-[var(--border)] text-left hover:border-[var(--primary)] transition-colors"
             >
-              <div className="text-2xl mb-1">🔑</div>
+              <KeyRound size={22} className="text-[var(--primary)] mb-1.5" />
               <div className="font-bold text-sm">Join a Class</div>
               <div className="text-xs text-[var(--text-muted)]">Enter your teacher's code</div>
             </button>
@@ -191,7 +191,7 @@ export default function Profile({ navigate, profile, onUpdateProfile, showToast 
             onClick={() => navigate('/discussions')}
             className="bg-white p-4 rounded-2xl shadow-sm border border-[var(--border)] text-left hover:border-[var(--primary)] transition-colors"
           >
-            <div className="text-2xl mb-1">💬</div>
+            <MessageSquare size={22} className="text-[var(--primary)] mb-1.5" />
             <div className="font-bold text-sm">Discussions</div>
             <div className="text-xs text-[var(--text-muted)]">Join study groups</div>
           </button>
@@ -202,7 +202,7 @@ export default function Profile({ navigate, profile, onUpdateProfile, showToast 
             onClick={() => navigate('/teacher-apply')}
             className="bg-white p-4 rounded-2xl shadow-sm border border-[var(--border)] text-left hover:border-[var(--primary)] transition-colors flex items-center gap-3"
           >
-            <span className="text-2xl">🎓</span>
+            <GraduationCap size={22} className="text-[var(--primary)] shrink-0" />
             <div>
               <div className="font-bold text-sm">Become a Teacher</div>
               <div className="text-xs text-[var(--text-muted)]">Apply to teach on Akademì</div>
