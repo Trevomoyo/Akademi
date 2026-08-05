@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Trash2, Edit3, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit3, ChevronDown, ChevronUp, Mail, Phone } from 'lucide-react';
 import { SUBJECTS_DB } from '../lib/content';
 import { AkademiDB } from '../lib/db';
 import { supabase } from '../lib/supabase';
@@ -405,8 +405,8 @@ export default function Admin({ navigate, showToast }: any) {
                       <button onClick={() => { setNMode('new'); setNOverrideTopicId(''); }} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${nMode === 'new' ? 'bg-white shadow text-[var(--primary)]' : 'text-[var(--text-muted)]'}`}>
                         + Add new topic
                       </button>
-                      <button onClick={() => setNMode('edit')} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${nMode === 'edit' ? 'bg-white shadow text-[var(--primary)]' : 'text-[var(--text-muted)]'}`}>
-                        ✎ Replace existing
+                      <button onClick={() => setNMode('edit')} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 ${nMode === 'edit' ? 'bg-white shadow text-[var(--primary)]' : 'text-[var(--text-muted)]'}`}>
+                        <Edit3 size={13} /> Replace existing
                       </button>
                     </div>
 
@@ -601,9 +601,9 @@ export default function Admin({ navigate, showToast }: any) {
                       <p className="text-sm text-[var(--text-muted)] mb-3 leading-relaxed">{app.credentials_note}</p>
                     )}
 
-                    <div className="flex flex-wrap gap-3 text-xs text-[var(--text-muted)] mb-3">
-                      {app.email && <span>📧 {app.email}</span>}
-                      {app.phone && <span>📞 {app.phone}</span>}
+                    <div className="flex flex-wrap gap-4 text-xs text-[var(--text-muted)] mb-3">
+                      {app.email && <span className="flex items-center gap-1.5"><Mail size={12} /> {app.email}</span>}
+                      {app.phone && <span className="flex items-center gap-1.5"><Phone size={12} /> {app.phone}</span>}
                     </div>
 
                     {app.status === 'pending' && (
