@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Send, Trash2, CornerDownRight } from 'lucide-react';
+import { ArrowLeft, Send, Trash2, CornerDownRight, X } from 'lucide-react';
 
 async function getAuthHeader() {
   const { data: { session } } = await supabase.auth.getSession();
@@ -116,7 +116,7 @@ export default function DiscussionThread({ route, navigate, profile, showToast }
           {replyingTo && (
             <div className="flex items-center justify-between bg-[var(--surface-light)] px-3 py-1.5 rounded-lg mb-2 text-xs">
               <span className="text-[var(--text-muted)]">Replying to <strong>{replyingTo.authorName}</strong></span>
-              <button onClick={() => setReplyingTo(null)} className="text-[var(--text-muted)] font-bold">✕</button>
+              <button onClick={() => setReplyingTo(null)} className="text-[var(--text-muted)]"><X size={14} /></button>
             </div>
           )}
           <div className="flex gap-2">
